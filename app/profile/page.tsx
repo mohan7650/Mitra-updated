@@ -3,12 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Share2, Settings, BadgeCheck, MapPin, Calendar, Pencil, UserPlus,
+  Share2, LogOut, BadgeCheck, MapPin, Calendar, Pencil, UserPlus,
   Home, Info, HeartPulse, FileText, Users, ChevronRight, Video,
   Image as ImageIcon, Gift, ShieldCheck, Phone, ScanLine,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Qr from "@/components/Qr";
 import BottomNav from "@/components/home/BottomNav";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/lib/AuthContext";
 import { rocky, profileTabs, highlights, profileStats, aboutRocky } from "@/lib/data";
 
 const tabIcons: Record<string, typeof Home> = {
@@ -20,7 +23,22 @@ const statIcons: Record<string, typeof Home> = {
 };
 
 export default function ProfilePage() {
+  return (
+    <ProtectedRoute>
+      <ProfilePageContent />
+    </ProtectedRoute>
+  );
+}
+
+function ProfilePageContent() {
   const [tab, setTab] = useState("Overview");
+  const { logout } = useAuth();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await logout();
+    router.push("/");
+  }
 
   return (
     <div className="min-h-screen bg-cream-100">
@@ -49,9 +67,14 @@ export default function ProfilePage() {
               <button aria-label="Share" className="grid h-10 w-10 place-items-center rounded-full bg-cream-50 text-bark-600 shadow-soft">
                 <Share2 className="h-4 w-4" />
               </button>
-              <Link href="/home" aria-label="Settings" className="grid h-10 w-10 place-items-center rounded-full bg-cream-50 text-bark-600 shadow-soft">
-                <Settings className="h-4 w-4" />
-              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                aria-label="Logout"
+                className="grid h-10 w-10 place-items-center rounded-full bg-cream-50 text-bark-600 shadow-soft"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
 

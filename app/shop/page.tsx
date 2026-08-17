@@ -6,6 +6,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import BottomNav from "@/components/home/BottomNav";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import {
   shopCategoriesRail, shopCategories, topPicks, shopTrust,
 } from "@/lib/data";
@@ -15,6 +16,14 @@ const trustIcons: Record<string, LucideIcon> = {
 };
 
 export default function ShopPage() {
+  return (
+    <ProtectedRoute>
+      <ShopPageContent />
+    </ProtectedRoute>
+  );
+}
+
+function ShopPageContent() {
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="mx-auto flex min-h-screen max-w-md flex-col">

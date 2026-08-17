@@ -3,9 +3,18 @@ import Logo from "@/components/Logo";
 import StoryRail from "@/components/home/StoryRail";
 import PostCard from "@/components/home/PostCard";
 import BottomNav from "@/components/home/BottomNav";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { posts } from "@/lib/data";
 
 export default function HomePage() {
+  return (
+    <ProtectedRoute>
+      <HomePageContent />
+    </ProtectedRoute>
+  );
+}
+
+function HomePageContent() {
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="mx-auto flex min-h-screen max-w-md flex-col">

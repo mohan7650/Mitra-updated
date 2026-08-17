@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fredoka, Nunito } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/AuthContext";
 
 const fredoka = Fredoka({
   subsets: ["latin"],
@@ -27,7 +28,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${fredoka.variable} ${nunito.variable}`}>
-      <body className="font-sans bg-cream-100 text-bark-700">{children}</body>
+      <body className="font-sans bg-cream-100 text-bark-700">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

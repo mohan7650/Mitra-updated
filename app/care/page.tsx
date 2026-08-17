@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import BottomNav from "@/components/home/BottomNav";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { careServices } from "@/lib/data";
 
 const icons: Record<string, LucideIcon> = {
@@ -16,6 +17,14 @@ const icons: Record<string, LucideIcon> = {
 };
 
 export default function CarePage() {
+  return (
+    <ProtectedRoute>
+      <CarePageContent />
+    </ProtectedRoute>
+  );
+}
+
+function CarePageContent() {
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="mx-auto flex min-h-screen max-w-md flex-col">
