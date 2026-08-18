@@ -11,6 +11,7 @@ model User {
   id           String   @id @default(uuid())
   firstName    String   @map("first_name")
   lastName     String   @map("last_name")
+  phone        String?
   email        String   @unique
   passwordHash String   @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -44,6 +45,10 @@ model Pet {
   vaccinated   Boolean?
   neutered     Boolean?
   hasAllergies Boolean? @map("has_allergies")
+
+  personalityTraits  String[] @default([]) @map("personality_traits")
+  favoriteActivities String[] @default([]) @map("favorite_activities")
+  favoriteTreats     String[] @default([]) @map("favorite_treats")
 
   ownerId String @map("owner_id")
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)

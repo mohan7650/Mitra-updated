@@ -16,4 +16,8 @@ export class UsersService {
   create(data: { firstName: string; lastName: string; email: string; passwordHash: string }) {
     return this.prisma.user.create({ data });
   }
+
+  update(id: string, data: { firstName?: string; lastName?: string; phone?: string }) {
+    return this.prisma.user.update({ where: { id }, data });
+  }
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Share2, LogOut, BadgeCheck, MapPin, Calendar, Pencil, UserPlus,
+  Share2, LogOut, BadgeCheck, Calendar, Pencil, UserPlus,
   Home, Info, HeartPulse, FileText, Users, ChevronRight, Video,
   Image as ImageIcon, Gift, ShieldCheck, Phone, ScanLine,
 } from "lucide-react";
@@ -12,15 +12,86 @@ import Qr from "@/components/Qr";
 import BottomNav from "@/components/home/BottomNav";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/lib/AuthContext";
-import { rocky, profileTabs, highlights, profileStats, aboutRocky } from "@/lib/data";
+import { apiGetPets, apiGetPetProfile, PetProfile, ApiError } from "@/lib/api";
+import {
+  profileTabs, highlights,
+  personalityTraitOptions, favoriteActivityOptions, favoriteTreatOptions, optionLabel,
+} from "@/lib/data";
 
 const tabIcons: Record<string, typeof Home> = {
   Overview: Home, About: Info, Health: HeartPulse,
   Records: FileText, Moments: FileText, "Paw Pals": UserPlus,
 };
-const statIcons: Record<string, typeof Home> = {
-  image: ImageIcon, users: Users, calendar: Calendar, gift: Gift,
+
+const traitTagColors = [
+  "bg-forest-400/15 text-forest-600",
+  "bg-sky-400/15 text-sky-600",
+  "bg-rose-400/15 text-rose-600",
+  "bg-amber-400/15 text-amber-600",
+  "bg-violet-400/15 text-violet-600",
+  "bg-orange-400/15 text-orange-600",
+];
+
+const speciesEmoji: Record<string, string> = {
+  DOG: "🐶",
+  CAT: "🐱",
+  BIRD: "🦜",
+  RABBIT: "🐰",
+  SMALL: "🐹",
+  REPTILE: "🐢",
 };
+
+const EMPTY = "Not added yet";
+
+function formatAge(dateOfBirth: string | null): string {
+  if (!dateOfBirth) return EMPTY;
+  const dob = new Date(dateOfBirth);
+  const now = new Date();
+  let months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+  if (now.getDate() < dob.getDate()) months -= 1;
+  if (months < 0) months = 0;
+  if (months < 12) return `${months} ${months === 1 ? "month" : "months"}`;
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+  if (remMonths === 0) return `${years} ${years === 1 ? "year" : "years"}`;
+  return `${years} yr ${remMonths} mo`;
+}
+
+function formatBornOn(dateOfBirth: string | null): string {
+  if (!dateOfBirth) return EMPTY;
+  const dob = new Date(dateOfBirth);
+  return `Born on ${dob.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+}
+
+function formatGender(gender: string | null): string {
+  if (!gender) return EMPTY;
+  const g = gender.toUpperCase();
+  if (g === "MALE") return "Male";
+  if (g === "FEMALE") return "Female";
+  if (g === "UNKNOWN") return "Unknown";
+  return gender;
+}
+
+function formatWeight(latestWeight: PetProfile["health"]["latestWeight"]): string {
+  if (!latestWeight) return EMPTY;
+  return `${latestWeight.weight}${latestWeight.unit ? ` ${latestWeight.unit}` : ""}`;
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+}
+
+function formatRelative(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const target = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return "Overdue";
+  if (diffDays === 0) return "Due today";
+  if (diffDays === 1) return "In 1 day";
+  return `In ${diffDays} days`;
+}
 
 export default function ProfilePage() {
   return (
@@ -32,13 +103,110 @@ export default function ProfilePage() {
 
 function ProfilePageContent() {
   const [tab, setTab] = useState("Overview");
-  const { logout } = useAuth();
+  const { logout, accessToken } = useAuth();
   const router = useRouter();
+
+  const [profile, setProfile] = useState<PetProfile | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+
+    apiGetPets(accessToken)
+      .then((pets) => {
+        if (cancelled) return;
+        if (pets.length === 0) {
+          router.replace("/onboarding/pet-type");
+          return;
+        }
+        return apiGetPetProfile(accessToken, pets[0].id);
+      })
+      .then((fetchedProfile) => {
+        if (cancelled || !fetchedProfile) return;
+        setProfile(fetchedProfile);
+        setStatus("ready");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setStatus("error");
+        if (!(err instanceof ApiError)) console.error(err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, router]);
 
   async function handleLogout() {
     await logout();
     router.push("/");
   }
+
+  if (status === "loading" || !profile) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-cream-100">
+        <p className="text-bark-500">Loading profile…</p>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-cream-100 px-6 text-center">
+        <p className="text-bark-600">We couldn&rsquo;t load your pet&rsquo;s profile right now.</p>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="text-sm font-600 text-coral-500"
+        >
+          Log out
+        </button>
+      </div>
+    );
+  }
+
+  const { pet, owner, profilePhoto, health, emergencyContacts, safetyProfile, socialStats } = profile;
+  const primaryContact = emergencyContacts[0] ?? null;
+  const primaryMedication = health.activeMedications[0] ?? null;
+  const ownerName = `${owner.firstName} ${owner.lastName}`.trim();
+
+  const aboutRows = [
+    { k: "Breed", v: pet.breed ?? EMPTY },
+    { k: "Gender", v: formatGender(pet.gender) },
+    { k: "Weight", v: formatWeight(health.latestWeight) },
+    { k: "Color", v: pet.coatColor ?? EMPTY },
+    {
+      k: "Personality",
+      v: pet.personalityTraits.length > 0
+        ? pet.personalityTraits.map((t) => optionLabel(personalityTraitOptions, t)).join(", ")
+        : EMPTY,
+    },
+    {
+      k: "Favorite Activities",
+      v: pet.favoriteActivities.length > 0
+        ? pet.favoriteActivities.map((t) => optionLabel(favoriteActivityOptions, t)).join(", ")
+        : EMPTY,
+    },
+    {
+      k: "Favorite Treats",
+      v: pet.favoriteTreats.length > 0
+        ? pet.favoriteTreats.map((t) => optionLabel(favoriteTreatOptions, t)).join(", ")
+        : EMPTY,
+    },
+  ];
+
+  const statsDisplay = [
+    { label: "Paw Moments", value: String(socialStats.pawMoments), icon: "image", tint: "bg-emerald-100 text-emerald-600" },
+    { label: "Paw Pals", value: String(socialStats.pawPals), icon: "users", tint: "bg-violet-100 text-violet-600" },
+    { label: "Meetups", value: "0", icon: "calendar", tint: "bg-rose-100 text-rose-500" },
+    { label: "Paw It Forward", value: "0", icon: "gift", tint: "bg-orange-100 text-orange-500" },
+  ];
+  const statIcons: Record<string, typeof Home> = {
+    image: ImageIcon, users: Users, calendar: Calendar, gift: Gift,
+  };
+
+  const safetyBlurb = safetyProfile?.emergencyNotes || `${pet.name}’s QR can help reunite you if they get lost.`;
 
   return (
     <div className="min-h-screen bg-cream-100">
@@ -47,21 +215,42 @@ function ProfilePageContent() {
           {/* Header row */}
           <div className="flex items-start gap-4">
             <div className="relative shrink-0">
-              <div className="grid h-28 w-28 place-items-center rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-6xl ring-4 ring-cream-50 shadow-soft">
-                🐶
-              </div>
+              {profilePhoto?.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profilePhoto.imageUrl}
+                  alt={pet.name}
+                  className="h-28 w-28 rounded-full object-cover ring-4 ring-cream-50 shadow-soft"
+                />
+              ) : (
+                <div className="grid h-28 w-28 place-items-center rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-6xl ring-4 ring-cream-50 shadow-soft">
+                  {speciesEmoji[pet.species.toUpperCase()] ?? "🐾"}
+                </div>
+              )}
               <span className="absolute bottom-1 right-1 grid h-8 w-8 place-items-center rounded-full bg-sky-500 text-white ring-2 ring-cream-100">
                 <ScanLine className="h-4 w-4" />
               </span>
             </div>
             <div className="min-w-0 flex-1 pt-1">
               <div className="flex items-center gap-1.5">
-                <h1 className="font-display text-3xl font-700 text-bark-700">{rocky.name}</h1>
+                <h1 className="font-display text-3xl font-700 text-bark-700">{pet.name}</h1>
                 <BadgeCheck className="h-6 w-6 fill-sky-500 text-cream-50" />
               </div>
               <p className="text-sm text-bark-500">
-                {rocky.breed} • {rocky.age}
+                {pet.breed ?? EMPTY} • {formatAge(pet.dateOfBirth)}
               </p>
+              {pet.personalityTraits.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {pet.personalityTraits.map((trait, i) => (
+                    <span
+                      key={trait}
+                      className={`rounded-full px-3 py-1 text-sm font-600 ${traitTagColors[i % traitTagColors.length]}`}
+                    >
+                      {optionLabel(personalityTraitOptions, trait)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <button aria-label="Share" className="grid h-10 w-10 place-items-center rounded-full bg-cream-50 text-bark-600 shadow-soft">
@@ -78,20 +267,14 @@ function ProfilePageContent() {
             </div>
           </div>
 
-          {/* Tags */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {rocky.tags.map((t) => (
-              <span key={t.label} className={`rounded-full px-3 py-1 text-sm font-600 ${t.tint}`}>
-                {t.label}
-              </span>
-            ))}
-          </div>
+          {/* Bio */}
+          {pet.bio && (
+            <p className="mt-3 text-sm text-bark-600">{pet.bio}</p>
+          )}
 
-          {/* Location + born */}
+          {/* Born */}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-bark-600">
-            <span className="flex items-center gap-1"><MapPin className="h-4 w-4 text-forest-500" />{rocky.location}</span>
-            <span className="text-cream-300">|</span>
-            <span className="flex items-center gap-1"><Calendar className="h-4 w-4 text-bark-500" />{rocky.born}</span>
+            <span className="flex items-center gap-1"><Calendar className="h-4 w-4 text-bark-500" />{formatBornOn(pet.dateOfBirth)}</span>
           </div>
 
           {/* Mitra Pet ID */}
@@ -103,7 +286,7 @@ function ProfilePageContent() {
               </div>
               <p className="mt-0.5 text-xs text-bark-500">Scan my QR if I get lost 🐾</p>
               <p className="mt-3 text-sm text-bark-600">
-                Pet ID: <span className="font-700 text-bark-700">{rocky.petId}</span>
+                Pet ID: <span className="font-700 text-bark-700">Not generated yet</span>
               </p>
             </div>
             <Qr size={74} />
@@ -111,9 +294,12 @@ function ProfilePageContent() {
 
           {/* Actions */}
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <button className="flex h-12 items-center justify-center gap-2 rounded-xl bg-coral-500/10 font-600 text-coral-500">
+            <Link
+              href="/profile/edit"
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-coral-500/10 font-600 text-coral-500"
+            >
               <Pencil className="h-4 w-4" /> Edit Profile
-            </button>
+            </Link>
             <button className="flex h-12 items-center justify-center gap-2 rounded-xl bg-cream-200 font-600 text-bark-600">
               <UserPlus className="h-4 w-4" /> Share Profile
             </button>
@@ -140,7 +326,7 @@ function ProfilePageContent() {
             })}
           </div>
 
-          {/* Social highlights */}
+          {/* Social highlights (demo content — no backing data model yet) */}
           <div className="mt-5 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-lg font-700 text-bark-700">
               <span className="grid h-6 w-6 place-items-center rounded-full bg-sky-100 text-sky-600 text-xs">🐾</span>
@@ -163,7 +349,7 @@ function ProfilePageContent() {
 
           {/* Stats */}
           <div className="mt-4 grid grid-cols-4 gap-2 rounded-2xl bg-cream-50 p-3 shadow-soft ring-1 ring-cream-200">
-            {profileStats.map((s) => {
+            {statsDisplay.map((s) => {
               const Icon = statIcons[s.icon];
               return (
                 <div key={s.label} className="flex flex-col items-center gap-1 text-center">
@@ -179,10 +365,10 @@ function ProfilePageContent() {
           <div className="mt-4 grid grid-cols-1 gap-4">
             <div className="rounded-2xl bg-cream-50 p-4 shadow-soft ring-1 ring-cream-200">
               <h3 className="flex items-center gap-2 font-display text-lg font-700 text-bark-700">
-                <span className="text-violet-500">👤</span> About {rocky.name}
+                <span className="text-violet-500">👤</span> About {pet.name}
               </h3>
               <dl className="mt-3 space-y-2 text-sm">
-                {aboutRocky.map((row) => (
+                {aboutRows.map((row) => (
                   <div key={row.k} className="flex gap-4">
                     <dt className="w-32 shrink-0 text-bark-500">{row.k}</dt>
                     <dd className="font-600 text-bark-700">{row.v}</dd>
@@ -204,19 +390,24 @@ function ProfilePageContent() {
               <div className="mt-3 flex items-center gap-3 rounded-xl bg-emerald-50 p-3">
                 <ShieldCheck className="h-6 w-6 shrink-0 text-emerald-500" />
                 <div>
-                  <p className="font-700 text-emerald-600">Up to date</p>
-                  <p className="text-xs text-bark-500">All vaccinations are up to date!</p>
+                  <p className="font-700 text-emerald-600">Health information</p>
+                  <p className="text-xs text-bark-500">Vaccinations, medications & allergies below.</p>
                 </div>
               </div>
               <div className="mt-3 space-y-3 text-sm">
-                <HealthRow label="Next Vaccine" name="Rabies" date="Aug 12, 2025" note="In 32 days" />
-                <HealthRow label="Next Checkup" name="Annual Wellness" date="Sep 05, 2025" note="In 56 days" />
+                <HealthRow
+                  label="Next Vaccine"
+                  name={health.nextVaccination?.name ?? "No upcoming vaccination"}
+                  date={health.nextVaccination ? formatDate(health.nextVaccination.nextDueDate) : ""}
+                  note={health.nextVaccination ? formatRelative(health.nextVaccination.nextDueDate) : ""}
+                />
+                <HealthRow label="Next Checkup" name="Not scheduled" date="" note="" />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-bark-500">Active Medications</p>
-                    <p className="font-600 text-bark-700">Heartworm Chewable</p>
+                    <p className="font-600 text-bark-700">{primaryMedication?.name ?? "No active medications"}</p>
                   </div>
-                  <span className="text-bark-500">Monthly</span>
+                  <span className="text-bark-500">{primaryMedication?.frequency ?? ""}</span>
                 </div>
               </div>
               <button className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-emerald-50 py-2.5 text-sm font-600 text-emerald-600">
@@ -230,20 +421,30 @@ function ProfilePageContent() {
             <div className="rounded-2xl bg-cream-50 p-4 shadow-soft ring-1 ring-cream-200">
               <div className="flex items-center justify-between">
                 <h3 className="flex items-center gap-2 font-display text-lg font-700 text-bark-700"><span className="text-violet-500">👤</span> Pet Parent</h3>
-                <button className="text-sm font-600 text-violet-600">Edit</button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/profile/edit-parent")}
+                  className="text-sm font-600 text-violet-600"
+                >
+                  Edit
+                </button>
               </div>
               <div className="mt-3 flex items-center gap-3">
-                <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-b from-rose-200 to-amber-100 text-2xl">👩</span>
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-b from-rose-200 to-amber-100 text-2xl">👤</span>
                 <div className="text-sm">
-                  <p className="font-700 text-bark-700">Bhavani M.</p>
-                  <p className="flex items-center gap-1 text-bark-500"><Phone className="h-3 w-3" />(312) 555-7849</p>
-                  <p className="text-bark-500">bhavani.mitra@gmail.com</p>
+                  <p className="font-700 text-bark-700">{ownerName || EMPTY}</p>
+                  <p className="flex items-center gap-1 text-bark-500"><Phone className="h-3 w-3" />{owner.phone || EMPTY}</p>
+                  <p className="text-bark-500">{owner.email}</p>
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between rounded-xl bg-violet-50 p-3 text-sm">
                 <div>
                   <p className="text-violet-600 font-600">Emergency Contact</p>
-                  <p className="text-bark-600">Mom (312) 555-9865</p>
+                  <p className="text-bark-600">
+                    {primaryContact
+                      ? `${primaryContact.name}${primaryContact.relationship ? ` (${primaryContact.relationship})` : ""} — ${primaryContact.phone}`
+                      : EMPTY}
+                  </p>
                 </div>
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-violet-600 shadow-soft"><Phone className="h-4 w-4" /></span>
               </div>
@@ -255,7 +456,7 @@ function ProfilePageContent() {
                 <ChevronRight className="h-5 w-5 text-bark-400" />
               </div>
               <div className="mt-3 flex items-center gap-3">
-                <p className="flex-1 text-sm text-bark-600">Rocky&rsquo;s QR can help reunite you if he gets lost.</p>
+                <p className="flex-1 text-sm text-bark-600">{safetyBlurb}</p>
                 <Qr size={60} />
               </div>
               <button className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-amber-50 py-2.5 text-sm font-600 text-amber-600">
@@ -278,10 +479,12 @@ function HealthRow({ label, name, date, note }: { label: string; name: string; d
         <p className="text-bark-500">{label}</p>
         <p className="font-700 text-bark-700">{name}</p>
       </div>
-      <div className="text-right">
-        <p className="font-600 text-bark-700">{date}</p>
-        <p className="text-emerald-500">{note}</p>
-      </div>
+      {(date || note) && (
+        <div className="text-right">
+          {date && <p className="font-600 text-bark-700">{date}</p>}
+          {note && <p className="text-emerald-500">{note}</p>}
+        </div>
+      )}
     </div>
   );
 }

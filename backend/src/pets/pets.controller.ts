@@ -34,6 +34,11 @@ export class PetsController {
     return this.petsService.findAllForOwner(this.ownerId(req));
   }
 
+  @Get(':id/profile')
+  getProfile(@Req() req: Request, @Param('id') id: string) {
+    return this.petsService.getProfile(this.ownerId(req), id);
+  }
+
   @Get(':id')
   findOne(@Req() req: Request, @Param('id') id: string) {
     return this.petsService.findOneForOwner(this.ownerId(req), id);

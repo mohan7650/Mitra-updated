@@ -82,8 +82,15 @@ function Select({
   );
 }
 
-function YesNo({ question, defaultYes }: { question: string; defaultYes: boolean }) {
-  const [yes, setYes] = useState(defaultYes);
+function YesNo({
+  question,
+  value,
+  onChange,
+}: {
+  question: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
   return (
     <div className="rounded-2xl bg-cream-50 p-3 shadow-soft ring-1 ring-cream-200">
       <div className="mb-2 flex items-center gap-1 text-[13px] font-600 text-bark-600">
@@ -98,9 +105,9 @@ function YesNo({ question, defaultYes }: { question: string; defaultYes: boolean
           <button
             key={o.label}
             type="button"
-            onClick={() => setYes(o.val)}
+            onClick={() => onChange(o.val)}
             className={`flex-1 rounded-lg py-1.5 text-sm font-700 transition ${
-              yes === o.val
+              value === o.val
                 ? "bg-forest-400/20 text-forest-600 ring-1 ring-forest-500"
                 : "text-bark-500 ring-1 ring-cream-300"
             }`}
@@ -126,6 +133,15 @@ export default function PetDetailsPage() {
   const [dob, setDob] = useState("");
   const [sex, setSex] = useState<"male" | "female" | "unknown">("male");
   const [notes, setNotes] = useState("");
+  const [weight, setWeight] = useState("18");
+  const [weightUnit, setWeightUnit] = useState("kg");
+  const [size, setSize] = useState(sizes[0]);
+  const [coatType, setCoatType] = useState(coatTypes[0]);
+  const [coatColor, setCoatColor] = useState(coatColors[0].label);
+  const [microchipped, setMicrochipped] = useState(true);
+  const [vaccinated, setVaccinated] = useState(true);
+  const [neutered, setNeutered] = useState(false);
+  const [hasAllergies, setHasAllergies] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -155,13 +171,23 @@ export default function PetDetailsPage() {
     setError(null);
     setSubmitting(true);
     try {
+      const parsedWeight = parseFloat(weight);
       await apiCreatePet(accessToken, {
         name: name.trim(),
         species: species.toUpperCase(),
         breed,
         gender: sex.toUpperCase(),
         dateOfBirth: dob || undefined,
-        bio: notes || undefined,
+        weight: Number.isFinite(parsedWeight) ? parsedWeight : undefined,
+        weightUnit,
+        size,
+        coatType,
+        coatColor,
+        uniqueMarks: notes || undefined,
+        microchipped,
+        vaccinated,
+        neutered,
+        hasAllergies,
       });
       sessionStorage.removeItem("mitra_pet_species");
       router.push("/home");
@@ -285,13 +311,18 @@ export default function PetDetailsPage() {
                 <div className="flex flex-1 items-center rounded-xl bg-cream-100 ring-1 ring-cream-300">
                   <Scale className="ml-2 h-4 w-4 text-bark-500" />
                   <input
-                    defaultValue="18"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
                     inputMode="decimal"
                     className="w-full bg-transparent px-2 py-3 text-[15px] text-bark-700 outline-none"
                   />
                 </div>
                 <div className="relative flex items-center rounded-xl bg-cream-100 ring-1 ring-cream-300">
-                  <select className="appearance-none bg-transparent py-3 pl-3 pr-7 text-[15px] text-bark-700 outline-none">
+                  <select
+                    value={weightUnit}
+                    onChange={(e) => setWeightUnit(e.target.value)}
+                    className="appearance-none bg-transparent py-3 pl-3 pr-7 text-[15px] text-bark-700 outline-none"
+                  >
                     <option>kg</option>
                     <option>lb</option>
                   </select>
@@ -301,7 +332,7 @@ export default function PetDetailsPage() {
             </Card>
             <Card>
               <Label>Size</Label>
-              <Select icon={<Ruler className="h-4 w-4" />} value="Large (20 - 40 kg)" options={sizes} />
+              <Select icon={<Ruler className="h-4 w-4" />} value={size} options={sizes} onChange={setSize} />
             </Card>
           </div>
 
@@ -309,15 +340,19 @@ export default function PetDetailsPage() {
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <Label>Coat Type</Label>
-              <Select icon={<PawPrint className="h-4 w-4" />} value="Medium" options={coatTypes} />
+              <Select icon={<PawPrint className="h-4 w-4" />} value={coatType} options={coatTypes} onChange={setCoatType} />
             </Card>
             <Card>
               <Label>Coat Color</Label>
               <div className="relative flex items-center rounded-xl bg-cream-100 ring-1 ring-cream-300">
                 <Palette className="ml-3 h-4 w-4 text-bark-500" />
-                <span className="ml-2 h-4 w-4 rounded-full" style={{ background: coatColors[0].swatch }} />
+                <span
+                  className="ml-2 h-4 w-4 rounded-full"
+                  style={{ background: coatColors.find((c) => c.label === coatColor)?.swatch ?? coatColors[0].swatch }}
+                />
                 <select
-                  defaultValue="Golden"
+                  value={coatColor}
+                  onChange={(e) => setCoatColor(e.target.value)}
                   className="w-full appearance-none bg-transparent py-3 pl-2 pr-8 text-[15px] text-bark-700 outline-none"
                 >
                   {coatColors.map((c) => (
@@ -349,10 +384,10 @@ export default function PetDetailsPage() {
           <div>
             <p className="mb-2 font-display font-600 text-forest-600">Good to know (optional)</p>
             <div className="grid grid-cols-2 gap-3">
-              <YesNo question={`Is your ${species} microchipped?`} defaultYes />
-              <YesNo question={`Is your ${species} vaccinated?`} defaultYes />
-              <YesNo question={`Is your ${species} neutered?`} defaultYes={false} />
-              <YesNo question={`Does your ${species} have allergies?`} defaultYes={false} />
+              <YesNo question={`Is your ${species} microchipped?`} value={microchipped} onChange={setMicrochipped} />
+              <YesNo question={`Is your ${species} vaccinated?`} value={vaccinated} onChange={setVaccinated} />
+              <YesNo question={`Is your ${species} neutered?`} value={neutered} onChange={setNeutered} />
+              <YesNo question={`Does your ${species} have allergies?`} value={hasAllergies} onChange={setHasAllergies} />
             </div>
           </div>
         </div>

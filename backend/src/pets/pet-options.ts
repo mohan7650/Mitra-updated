@@ -1,0 +1,42 @@
+export const PERSONALITY_TRAITS = [
+  'FRIENDLY',
+  'PLAYFUL',
+  'CALM',
+  'CURIOUS',
+  'ENERGETIC',
+  'GENTLE',
+  'SHY',
+  'SOCIAL',
+  'PROTECTIVE',
+  'INDEPENDENT',
+  'AFFECTIONATE',
+  'ADVENTUROUS',
+] as const;
+
+export const FAVORITE_ACTIVITIES = [
+  'SWIMMING',
+  'FETCH',
+  'LONG_WALKS',
+  'HIKING',
+  'RUNNING',
+  'TUG_OF_WAR',
+  'TRAINING',
+  'CAR_RIDES',
+  'BEACH',
+  'DOG_PARK',
+  'NAP_TIME',
+  'PLAYING_WITH_TOYS',
+] as const;
+
+export const FAVORITE_TREATS = [
+  'PEANUT_BUTTER',
+  'BISCUITS',
+  'CHICKEN',
+  'CHEESE',
+  'CARROTS',
+  'APPLES',
+  'DENTAL_CHEWS',
+  'TRAINING_TREATS',
+  'SWEET_POTATO',
+  'PUMPKIN',
+] as const;
