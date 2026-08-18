@@ -17,18 +17,70 @@ export const petTypes: PetType[] = [
   { id: "reptile", label: "Reptile", emoji: "🐢", ring: "bg-forest-500/15", paw: "text-forest-500" },
 ];
 
-// ---- Onboarding: dog-details select options ---------------------------
+// ---- Onboarding: pet-details select options ----------------------------
 
-export const breeds = [
-  "Golden Retriever",
-  "Labrador Retriever",
-  "German Shepherd",
-  "Shiba Inu",
-  "Poodle",
-  "Beagle",
-  "Bulldog",
-  "Other",
-];
+export const breedsBySpecies: Record<string, string[]> = {
+  dog: [
+    "Golden Retriever",
+    "Labrador Retriever",
+    "German Shepherd",
+    "Shiba Inu",
+    "Poodle",
+    "Beagle",
+    "Bulldog",
+    "Other",
+  ],
+  cat: [
+    "Domestic Shorthair",
+    "Maine Coon",
+    "Siamese",
+    "Persian",
+    "Bengal",
+    "British Shorthair",
+    "Ragdoll",
+    "Other",
+  ],
+  bird: [
+    "Budgerigar",
+    "Cockatiel",
+    "African Grey",
+    "Macaw",
+    "Canary",
+    "Lovebird",
+    "Cockatoo",
+    "Other",
+  ],
+  rabbit: [
+    "Holland Lop",
+    "Netherland Dwarf",
+    "Mini Rex",
+    "Lionhead",
+    "Flemish Giant",
+    "Dutch",
+    "Other",
+  ],
+  small: [
+    "Hamster",
+    "Guinea Pig",
+    "Gerbil",
+    "Chinchilla",
+    "Ferret",
+    "Mouse",
+    "Other",
+  ],
+  reptile: [
+    "Bearded Dragon",
+    "Leopard Gecko",
+    "Ball Python",
+    "Corn Snake",
+    "Red-Eared Slider",
+    "Chameleon",
+    "Other",
+  ],
+  other: ["Other"],
+};
+
+export const breeds = breedsBySpecies.dog;
 
 export const sizes = [
   "Small (0 - 10 kg)",
@@ -46,6 +98,57 @@ export const coatColors = [
   { label: "Brown", swatch: "#7A4A28" },
   { label: "Grey", swatch: "#9AA0A6" },
 ];
+
+// ---- Profile: predefined multi-select options --------------------------
+// Stored values must match backend/src/pets/pet-options.ts exactly.
+
+export type SelectOption = { value: string; label: string };
+
+export const personalityTraitOptions: SelectOption[] = [
+  { value: "FRIENDLY", label: "Friendly" },
+  { value: "PLAYFUL", label: "Playful" },
+  { value: "CALM", label: "Calm" },
+  { value: "CURIOUS", label: "Curious" },
+  { value: "ENERGETIC", label: "Energetic" },
+  { value: "GENTLE", label: "Gentle" },
+  { value: "SHY", label: "Shy" },
+  { value: "SOCIAL", label: "Social" },
+  { value: "PROTECTIVE", label: "Protective" },
+  { value: "INDEPENDENT", label: "Independent" },
+  { value: "AFFECTIONATE", label: "Affectionate" },
+  { value: "ADVENTUROUS", label: "Adventurous" },
+];
+
+export const favoriteActivityOptions: SelectOption[] = [
+  { value: "SWIMMING", label: "Swimming" },
+  { value: "FETCH", label: "Fetch" },
+  { value: "LONG_WALKS", label: "Long Walks" },
+  { value: "HIKING", label: "Hiking" },
+  { value: "RUNNING", label: "Running" },
+  { value: "TUG_OF_WAR", label: "Tug of War" },
+  { value: "TRAINING", label: "Training" },
+  { value: "CAR_RIDES", label: "Car Rides" },
+  { value: "BEACH", label: "Beach" },
+  { value: "DOG_PARK", label: "Dog Park" },
+  { value: "NAP_TIME", label: "Nap Time" },
+  { value: "PLAYING_WITH_TOYS", label: "Playing with Toys" },
+];
+
+export const favoriteTreatOptions: SelectOption[] = [
+  { value: "PEANUT_BUTTER", label: "Peanut Butter" },
+  { value: "BISCUITS", label: "Biscuits" },
+  { value: "CHICKEN", label: "Chicken" },
+  { value: "CHEESE", label: "Cheese" },
+  { value: "CARROTS", label: "Carrots" },
+  { value: "APPLES", label: "Apples" },
+  { value: "DENTAL_CHEWS", label: "Dental Chews" },
+  { value: "TRAINING_TREATS", label: "Training Treats" },
+  { value: "SWEET_POTATO", label: "Sweet Potato" },
+  { value: "PUMPKIN", label: "Pumpkin" },
+];
+
+export const optionLabel = (options: SelectOption[], value: string): string =>
+  options.find((o) => o.value === value)?.label ?? value;
 
 // ---- Welcome: feature strip -------------------------------------------
 
@@ -143,20 +246,6 @@ export const posts: Post[] = [
 
 // ====== PROFILE ========================================================
 
-export const rocky = {
-  name: "Rocky",
-  breed: "Golden Retriever",
-  age: "2 years",
-  tags: [
-    { label: "Friendly", tint: "bg-forest-400/15 text-forest-600" },
-    { label: "Playful", tint: "bg-sky-100 text-sky-600" },
-    { label: "Loves Swimming", tint: "bg-violet-100 text-violet-600" },
-  ],
-  location: "Chicago, IL",
-  born: "Born on May 20, 2022",
-  petId: "MIT-ROCKY-2022",
-};
-
 export const profileTabs = [
   "Overview",
   "About",
@@ -173,22 +262,6 @@ export const highlights = [
   { id: "h4", emoji: "🌸", bg: "from-violet-200 to-purple-100", video: false },
 ];
 
-export const profileStats = [
-  { label: "Paw Moments", value: "28", icon: "image", tint: "bg-emerald-100 text-emerald-600" },
-  { label: "Paw Pals", value: "12", icon: "users", tint: "bg-violet-100 text-violet-600" },
-  { label: "Meetups", value: "6", icon: "calendar", tint: "bg-rose-100 text-rose-500" },
-  { label: "Paw It Forward", value: "4", icon: "gift", tint: "bg-orange-100 text-orange-500" },
-];
-
-export const aboutRocky = [
-  { k: "Breed", v: "Golden Retriever" },
-  { k: "Gender", v: "Male ♂" },
-  { k: "Weight", v: "68 lbs" },
-  { k: "Color", v: "Golden" },
-  { k: "Personality", v: "Friendly, Playful" },
-  { k: "Favorite Activities", v: "Swimming, Fetch, Long Walks" },
-  { k: "Favorite Treats", v: "Peanut Butter Biscuits" },
-];
 
 // ====== SHOP ===========================================================
 
@@ -246,19 +319,6 @@ export const communityShortcuts = [
   { id: "near", label: "Pets Near You", emoji: "📍", bg: "from-emerald-100 to-green-50" },
   { id: "discover", label: "Discover Paws", emoji: "✨", bg: "from-amber-100 to-orange-50" },
   { id: "packs", label: "Packs", emoji: "🐾", bg: "from-rose-100 to-pink-50" },
-];
-
-export const petsNearYou = [
-  { id: "buddy", name: "Buddy", sex: "m", breed: "Labradoodle", age: "2y", dist: "0.6 mi", emoji: "🐶", bg: "from-amber-200 to-orange-100", tags: [{ t: "Playful", c: "bg-emerald-100 text-emerald-600" }, { t: "Friendly", c: "bg-violet-100 text-violet-600" }] },
-  { id: "bailey", name: "Bailey", sex: "f", breed: "Corgi", age: "1y 6m", dist: "0.8 mi", emoji: "🦊", bg: "from-orange-200 to-amber-100", tags: [{ t: "Smart", c: "bg-amber-100 text-amber-600" }, { t: "Active", c: "bg-sky-100 text-sky-600" }] },
-  { id: "luna", name: "Luna", sex: "f", breed: "Labrador", age: "3y", dist: "1.2 mi", emoji: "🐕‍🦺", bg: "from-stone-300 to-stone-200", tags: [{ t: "Calm", c: "bg-sky-100 text-sky-600" }, { t: "Loyal", c: "bg-violet-100 text-violet-600" }] },
-  { id: "milo", name: "Milo", sex: "m", breed: "Aussie", age: "2y", dist: "1.5 mi", emoji: "🐕", bg: "from-amber-200 to-stone-200", tags: [{ t: "Energetic", c: "bg-amber-100 text-amber-600" }, { t: "Smart", c: "bg-sky-100 text-sky-600" }] },
-];
-
-export const connectionRequests = [
-  { id: "cooper", name: "Cooper", sex: "m", breed: "Golden Retriever", age: "2y", mutual: "2 mutual friends", emoji: "🐶", bg: "from-amber-200 to-orange-100" },
-  { id: "zoe", name: "Zoe", sex: "f", breed: "Border Collie", age: "2y", mutual: "3 mutual friends", emoji: "🐕‍🦺", bg: "from-stone-300 to-stone-100" },
-  { id: "daisy", name: "Daisy", sex: "f", breed: "Bichon Frise", age: "1y", mutual: "1 mutual friend", emoji: "🐩", bg: "from-rose-100 to-pink-50" },
 ];
 
 export const meetups = [

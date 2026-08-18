@@ -8,16 +8,19 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  firstName     String   @map("first_name")
-  lastName      String   @map("last_name")
-  email         String   @unique
-  passwordHash  String   @map("password_hash")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  phone        String?
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  refreshTokens RefreshToken[]
-  pets          Pet[]
+  refreshTokens     RefreshToken[]
+  pets              Pet[]
+  reminders         Reminder[]
+  emergencyContacts EmergencyContact[]
 
   @@map("users")
 }
@@ -30,24 +33,272 @@ model Pet {
   gender      String?
   dateOfBirth DateTime? @map("date_of_birth")
   bio         String?
-  ownerId     String    @map("owner_id")
-  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  weight      Float?
+  weightUnit  String? @map("weight_unit")
+  size        String?
+  coatType    String? @map("coat_type")
+  coatColor   String? @map("coat_color")
+  uniqueMarks String? @map("unique_marks")
+
+  microchipped Boolean?
+  vaccinated   Boolean?
+  neutered     Boolean?
+  hasAllergies Boolean? @map("has_allergies")
+
+  personalityTraits  String[] @default([]) @map("personality_traits")
+  favoriteActivities String[] @default([]) @map("favorite_activities")
+  favoriteTreats     String[] @default([]) @map("favorite_treats")
+
+  ownerId String @map("owner_id")
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  vaccinations    Vaccination[]
+  medicalRecords  MedicalRecord[]
+  medications     Medication[]
+  allergies       Allergy[]
+  weightRecords   WeightRecord[]
+  groomingRecords GroomingRecord[]
+  photos          PetPhoto[]
+  posts           PetPost[]
+  reminders       Reminder[]
+  safetyProfile   PetSafetyProfile?
+
+  connectionsSent     PetConnection[] @relation("PetConnectionRequester")
+  connectionsReceived PetConnection[] @relation("PetConnectionReceiver")
 
   @@index([ownerId])
   @@map("pets")
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @map("token_hash")
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime @map("expires_at")
+  id        String    @id @default(uuid())
+  tokenHash String    @map("token_hash")
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @map("expires_at")
   revokedAt DateTime? @map("revoked_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("refresh_tokens")
+}
+
+model Vaccination {
+  id          String    @id @default(uuid())
+  petId       String    @map("pet_id")
+  pet         Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  name        String
+  dateGiven   DateTime? @map("date_given")
+  nextDueDate DateTime? @map("next_due_date")
+  provider    String?
+  notes       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([petId])
+  @@map("vaccinations")
+}
+
+model MedicalRecord {
+  id          String   @id @default(uuid())
+  petId       String   @map("pet_id")
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  recordType  String   @map("record_type")
+  title       String
+  description String?
+  recordDate  DateTime @map("record_date")
+  vetName     String?  @map("vet_name")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([petId])
+  @@map("medical_records")
+}
+
+model Medication {
+  id        String    @id @default(uuid())
+  petId     String    @map("pet_id")
+  pet       Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  name      String
+  dosage    String?
+  frequency String?
+  startDate DateTime? @map("start_date")
+  endDate   DateTime? @map("end_date")
+  active    Boolean   @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([petId])
+  @@map("medications")
+}
+
+model Allergy {
+  id       String  @id @default(uuid())
+  petId    String  @map("pet_id")
+  pet      Pet     @relation(fields: [petId], references: [id], onDelete: Cascade)
+  name     String
+  severity String?
+  notes    String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([petId])
+  @@map("allergies")
+}
+
+model WeightRecord {
+  id         String   @id @default(uuid())
+  petId      String   @map("pet_id")
+  pet        Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  weight     Float
+  unit       String
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@index([petId])
+  @@map("weight_records")
+}
+
+model VetClinic {
+  id      String  @id @default(uuid())
+  name    String
+  phone   String?
+  email   String?
+  address String?
+  city    String?
+  state   String?
+  zipCode String? @map("zip_code")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("vet_clinics")
+}
+
+model GroomingRecord {
+  id          String    @id @default(uuid())
+  petId       String    @map("pet_id")
+  pet         Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  serviceType String    @map("service_type")
+  provider    String?
+  date        DateTime
+  nextDueDate DateTime? @map("next_due_date")
+  notes       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([petId])
+  @@map("grooming_records")
+}
+
+model Reminder {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  petId       String?  @map("pet_id")
+  pet         Pet?     @relation(fields: [petId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  description String?
+  dueAt       DateTime @map("due_at")
+  completed   Boolean  @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([petId])
+  @@map("reminders")
+}
+
+model PetConnection {
+  id           String @id @default(uuid())
+  requesterId  String @map("requester_id")
+  requesterPet Pet    @relation("PetConnectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiverId   String @map("receiver_id")
+  receiverPet  Pet    @relation("PetConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  status       String @default("PENDING")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([requesterId, receiverId])
+  @@index([receiverId])
+  @@map("pet_connections")
+}
+
+model PetPost {
+  id        String   @id @default(uuid())
+  petId     String   @map("pet_id")
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  caption   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  interactions PetInteraction[]
+
+  @@index([petId])
+  @@map("pet_posts")
+}
+
+model PetInteraction {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  post      PetPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  petId     String   @map("pet_id")
+  type      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([postId, petId, type])
+  @@index([postId])
+  @@map("pet_interactions")
+}
+
+model PetPhoto {
+  id        String  @id @default(uuid())
+  petId     String  @map("pet_id")
+  pet       Pet     @relation(fields: [petId], references: [id], onDelete: Cascade)
+  imageUrl  String  @map("image_url")
+  imageKey  String  @map("image_key")
+  isProfile Boolean @default(false) @map("is_profile")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([petId])
+  @@map("pet_photos")
+}
+
+model EmergencyContact {
+  id           String  @id @default(uuid())
+  userId       String  @map("user_id")
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  relationship String?
+  phone        String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("emergency_contacts")
+}
+
+model PetSafetyProfile {
+  id              String  @id @default(uuid())
+  petId           String  @unique @map("pet_id")
+  pet             Pet     @relation(fields: [petId], references: [id], onDelete: Cascade)
+  microchipNumber String? @map("microchip_number")
+  qrCodeId        String? @map("qr_code_id")
+  emergencyNotes  String? @map("emergency_notes")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("pet_safety_profiles")
 }

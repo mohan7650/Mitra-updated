@@ -1,20 +1,71 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, ChevronDown, ChevronRight, Scissors, Stethoscope,
   Footprints, Home, Shield, Syringe, HeartPulse, AlertTriangle,
-  type LucideIcon,
+  Sparkles, type LucideIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import BottomNav from "@/components/home/BottomNav";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/lib/AuthContext";
 import { careServices } from "@/lib/data";
+import {
+  apiGetPets,
+  apiGetVaccinations,
+  apiGetMedicalRecords,
+  apiGetMedications,
+  apiGetAllergies,
+  apiGetWeightRecords,
+  apiGetGroomingRecords,
+  apiGetReminders,
+  ApiError,
+  Pet,
+  Vaccination,
+  MedicalRecord,
+  Medication,
+  Allergy,
+  WeightRecord,
+  GroomingRecord,
+  Reminder,
+} from "@/lib/api";
 
 const icons: Record<string, LucideIcon> = {
   scissors: Scissors, stethoscope: Stethoscope, footprints: Footprints,
   home: Home, shield: Shield, syringe: Syringe, "heart-pulse": HeartPulse,
   "alert-triangle": AlertTriangle,
 };
+
+const EMPTY = "Not added yet";
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+}
+
+function formatRelative(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const target = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return "Overdue";
+  if (diffDays === 0) return "Due today";
+  if (diffDays === 1) return "In 1 day";
+  return `In ${diffDays} days`;
+}
+
+interface HealthData {
+  vaccinations: Vaccination[];
+  medicalRecords: MedicalRecord[];
+  medications: Medication[];
+  allergies: Allergy[];
+  weightRecords: WeightRecord[];
+  groomingRecords: GroomingRecord[];
+  reminders: Reminder[];
+  pet: Pet;
+}
 
 export default function CarePage() {
   return (
@@ -25,6 +76,102 @@ export default function CarePage() {
 }
 
 function CarePageContent() {
+  const { accessToken } = useAuth();
+  const router = useRouter();
+
+  const [data, setData] = useState<HealthData | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+
+    apiGetPets(accessToken)
+      .then(async (pets) => {
+        if (cancelled) return;
+        if (pets.length === 0) {
+          router.replace("/onboarding/pet-type");
+          return;
+        }
+        const pet = pets[0];
+        const [vaccinations, medicalRecords, medications, allergies, weightRecords, groomingRecords, reminders] =
+          await Promise.all([
+            apiGetVaccinations(accessToken, pet.id),
+            apiGetMedicalRecords(accessToken, pet.id),
+            apiGetMedications(accessToken, pet.id),
+            apiGetAllergies(accessToken, pet.id),
+            apiGetWeightRecords(accessToken, pet.id),
+            apiGetGroomingRecords(accessToken, pet.id),
+            apiGetReminders(accessToken),
+          ]);
+        if (cancelled) return;
+        setData({ vaccinations, medicalRecords, medications, allergies, weightRecords, groomingRecords, reminders, pet });
+        setStatus("ready");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setStatus("error");
+        if (!(err instanceof ApiError)) console.error(err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, router]);
+
+  if (status === "loading" || !data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-cream-100">
+        <p className="text-bark-500">Loading care information…</p>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-cream-100 px-6 text-center">
+        <p className="text-bark-600">We couldn&rsquo;t load your pet&rsquo;s care information right now.</p>
+        <Link href="/home" className="text-sm font-600 text-coral-500">Back to Home</Link>
+      </div>
+    );
+  }
+
+  const { pet, vaccinations, medicalRecords, medications, allergies, weightRecords, groomingRecords, reminders } = data;
+
+  const nextVaccination =
+    [...vaccinations]
+      .filter((v) => v.nextDueDate)
+      .sort((a, b) => new Date(a.nextDueDate as string).getTime() - new Date(b.nextDueDate as string).getTime())[0]
+    ?? vaccinations[0]
+    ?? null;
+
+  const activeMedications = medications.filter((m) => m.active);
+
+  const latestWeightRecord = [...weightRecords].sort(
+    (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime(),
+  )[0];
+  const latestWeightLabel = latestWeightRecord
+    ? `${latestWeightRecord.weight} ${latestWeightRecord.unit} • ${formatDate(latestWeightRecord.recordedAt)}`
+    : pet.weight != null
+      ? `${pet.weight} ${pet.weightUnit ?? ""}`.trim()
+      : EMPTY;
+
+  const nextGrooming =
+    [...groomingRecords]
+      .filter((g) => g.nextDueDate)
+      .sort((a, b) => new Date(a.nextDueDate as string).getTime() - new Date(b.nextDueDate as string).getTime())[0]
+    ?? groomingRecords[0]
+    ?? null;
+
+  const latestMedicalRecord = [...medicalRecords].sort(
+    (a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime(),
+  )[0];
+
+  const upcomingReminders = reminders
+    .filter((r) => r.petId === pet.id && !r.completed)
+    .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+    .slice(0, 3);
+
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="mx-auto flex min-h-screen max-w-md flex-col">
@@ -65,6 +212,79 @@ function CarePageContent() {
                 </button>
               );
             })}
+          </div>
+
+          {/* Health overview */}
+          <div className="mt-4 rounded-2xl bg-cream-50 p-4 shadow-soft ring-1 ring-cream-200">
+            <h3 className="flex items-center gap-2 font-display text-lg font-700 text-bark-700">
+              <Sparkles className="h-5 w-5 text-emerald-500" /> {pet.name}&rsquo;s Health Overview
+            </h3>
+
+            <dl className="mt-3 space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-bark-500">Next Vaccination</dt>
+                <dd className="text-right font-600 text-bark-700">
+                  {nextVaccination
+                    ? `${nextVaccination.name}${nextVaccination.nextDueDate ? ` • ${formatRelative(nextVaccination.nextDueDate)}` : ""}`
+                    : "No vaccinations added yet"}
+                </dd>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-bark-500">Active Medications</dt>
+                <dd className="text-right font-600 text-bark-700">
+                  {activeMedications.length > 0
+                    ? activeMedications.map((m) => m.name).join(", ")
+                    : "No medications added yet"}
+                </dd>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-bark-500">Allergies</dt>
+                <dd className="text-right font-600 text-bark-700">
+                  {allergies.length > 0 ? allergies.map((a) => a.name).join(", ") : "No allergies added"}
+                </dd>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-bark-500">Current Weight</dt>
+                <dd className="text-right font-600 text-bark-700">{latestWeightLabel}</dd>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-bark-500">Next Grooming</dt>
+                <dd className="text-right font-600 text-bark-700">
+                  {nextGrooming
+                    ? `${nextGrooming.serviceType}${nextGrooming.nextDueDate ? ` • ${formatRelative(nextGrooming.nextDueDate)}` : ""}`
+                    : "No grooming records added yet"}
+                </dd>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-bark-500">Latest Medical Record</dt>
+                <dd className="text-right font-600 text-bark-700">
+                  {latestMedicalRecord
+                    ? `${latestMedicalRecord.title} • ${formatDate(latestMedicalRecord.recordDate)}`
+                    : "No medical records added yet"}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-4 border-t border-cream-200 pt-3">
+              <p className="text-sm font-600 text-bark-600">Upcoming Reminders</p>
+              {upcomingReminders.length > 0 ? (
+                <ul className="mt-2 space-y-2 text-sm">
+                  {upcomingReminders.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-4">
+                      <span className="text-bark-700">{r.title}</span>
+                      <span className="text-bark-500">{formatRelative(r.dueAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-bark-500">No reminders added yet</p>
+              )}
+            </div>
           </div>
 
           {/* Emergency banner */}
