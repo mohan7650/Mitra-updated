@@ -21,7 +21,11 @@ import {
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import ProgressBar from "@/components/onboarding/ProgressBar";
-import { breedsBySpecies, sizes, coatTypes, coatColors } from "@/lib/data";
+import {
+  breedsBySpecies, sizes, coatTypes, coatColors,
+  personalityTraitOptions, favoriteActivityOptions, favoriteTreatOptions,
+  SelectOption,
+} from "@/lib/data";
 import { useAuth } from "@/lib/AuthContext";
 import { apiCreatePet, ApiError } from "@/lib/api";
 
@@ -120,6 +124,57 @@ function YesNo({
   );
 }
 
+function ChipSelect({
+  options,
+  selected,
+  onChange,
+  max,
+}: {
+  options: SelectOption[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+  max: number;
+}) {
+  const atMax = selected.length >= max;
+
+  function toggle(value: string) {
+    if (selected.includes(value)) {
+      onChange(selected.filter((v) => v !== value));
+      return;
+    }
+    if (atMax) return;
+    onChange([...selected, value]);
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => {
+          const on = selected.includes(o.value);
+          return (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => toggle(o.value)}
+              disabled={!on && atMax}
+              className={`rounded-full px-3 py-1.5 text-sm font-600 transition ${
+                on
+                  ? "bg-forest-400/20 text-forest-600 ring-1 ring-forest-500"
+                  : "text-bark-500 ring-1 ring-cream-300 disabled:opacity-40"
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-xs text-bark-400">
+        {selected.length}/{max} selected{atMax ? " — maximum reached" : ""}
+      </p>
+    </div>
+  );
+}
+
 /* ---- page ------------------------------------------------------------- */
 
 export default function PetDetailsPage() {
@@ -142,6 +197,9 @@ export default function PetDetailsPage() {
   const [vaccinated, setVaccinated] = useState(true);
   const [neutered, setNeutered] = useState(false);
   const [hasAllergies, setHasAllergies] = useState(false);
+  const [personalityTraits, setPersonalityTraits] = useState<string[]>([]);
+  const [favoriteActivities, setFavoriteActivities] = useState<string[]>([]);
+  const [favoriteTreats, setFavoriteTreats] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -172,7 +230,7 @@ export default function PetDetailsPage() {
     setSubmitting(true);
     try {
       const parsedWeight = parseFloat(weight);
-      await apiCreatePet(accessToken, {
+      const created = await apiCreatePet(accessToken, {
         name: name.trim(),
         species: species.toUpperCase(),
         breed,
@@ -188,9 +246,13 @@ export default function PetDetailsPage() {
         vaccinated,
         neutered,
         hasAllergies,
+        personalityTraits,
+        favoriteActivities,
+        favoriteTreats,
       });
       sessionStorage.removeItem("mitra_pet_species");
-      router.push("/home");
+      localStorage.setItem("mitra_selected_pet_id", created.id);
+      router.push("/profile");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -378,6 +440,20 @@ export default function PetDetailsPage() {
               />
             </div>
             <div className="mt-1 text-right text-xs text-bark-500">{notes.length}/120</div>
+          </Card>
+
+          {/* Personality / activities / treats */}
+          <Card>
+            <Label>Personality Traits</Label>
+            <ChipSelect options={personalityTraitOptions} selected={personalityTraits} onChange={setPersonalityTraits} max={5} />
+          </Card>
+          <Card>
+            <Label>Favorite Activities</Label>
+            <ChipSelect options={favoriteActivityOptions} selected={favoriteActivities} onChange={setFavoriteActivities} max={8} />
+          </Card>
+          <Card>
+            <Label>Favorite Treats</Label>
+            <ChipSelect options={favoriteTreatOptions} selected={favoriteTreats} onChange={setFavoriteTreats} max={8} />
           </Card>
 
           {/* Good to know */}

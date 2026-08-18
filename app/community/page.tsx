@@ -83,7 +83,8 @@ function CommunityPageContent() {
           router.replace("/onboarding/pet-type");
           return;
         }
-        const currentPet = pets[0];
+        const storedId = localStorage.getItem("mitra_selected_pet_id");
+        const currentPet = pets.find((p) => p.id === storedId) ?? pets[0];
         setPet(currentPet);
         await loadCommunity(accessToken, currentPet);
         if (cancelled) return;

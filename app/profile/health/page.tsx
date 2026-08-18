@@ -69,7 +69,8 @@ function ProfileHealthPageContent() {
           router.replace("/onboarding/pet-type");
           return;
         }
-        const pet = pets[0];
+        const storedId = localStorage.getItem("mitra_selected_pet_id");
+        const pet = pets.find((p) => p.id === storedId) ?? pets[0];
         const [vaccinations, medications, allergies, weightRecords, medicalRecords, groomingRecords] =
           await Promise.all([
             apiGetVaccinations(accessToken, pet.id),

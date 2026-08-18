@@ -93,7 +93,8 @@ function CarePageContent() {
           router.replace("/onboarding/pet-type");
           return;
         }
-        const pet = pets[0];
+        const storedId = localStorage.getItem("mitra_selected_pet_id");
+        const pet = pets.find((p) => p.id === storedId) ?? pets[0];
         const [vaccinations, medicalRecords, medications, allergies, weightRecords, groomingRecords, reminders] =
           await Promise.all([
             apiGetVaccinations(accessToken, pet.id),

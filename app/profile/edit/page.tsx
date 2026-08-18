@@ -202,7 +202,8 @@ function EditProfilePageContent() {
           router.replace("/onboarding/pet-type");
           return;
         }
-        const current = pets[0];
+        const storedId = localStorage.getItem("mitra_selected_pet_id");
+        const current = pets.find((p) => p.id === storedId) ?? pets[0];
         setPet(current);
         setName(current.name);
         setBreed(current.breed ?? "");

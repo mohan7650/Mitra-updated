@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Share2, LogOut, BadgeCheck, Calendar, Pencil, UserPlus,
   Home, Info, HeartPulse, FileText, Users, ChevronRight, Video,
-  Image as ImageIcon, Gift, ShieldCheck, Phone, ScanLine,
+  Image as ImageIcon, Gift, ShieldCheck, Phone, ScanLine, Check, Plus, X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import PetQrCode from "@/components/PetQrCode";
@@ -14,7 +14,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/lib/AuthContext";
 import {
   apiGetPets, apiGetPetProfile, apiGetPetSafetyProfile,
-  PetProfile, ProfileSafetyProfile, ApiError,
+  Pet, PetProfile, ProfileSafetyProfile, ApiError,
 } from "@/lib/api";
 import {
   profileTabs, highlights,
@@ -104,35 +104,61 @@ export default function ProfilePage() {
   );
 }
 
+const SELECTED_PET_KEY = "mitra_selected_pet_id";
+
 function ProfilePageContent() {
   const [tab, setTab] = useState("Overview");
   const { logout, accessToken } = useAuth();
   const router = useRouter();
 
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+
   const [profile, setProfile] = useState<PetProfile | null>(null);
   const [safety, setSafety] = useState<ProfileSafetyProfile | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
+  // Load the pet list once, then decide which pet is selected.
   useEffect(() => {
     if (!accessToken) return;
     let cancelled = false;
 
     apiGetPets(accessToken)
-      .then((pets) => {
+      .then((fetchedPets) => {
         if (cancelled) return;
-        if (pets.length === 0) {
+        if (fetchedPets.length === 0) {
           router.replace("/onboarding/pet-type");
           return;
         }
-        const petId = pets[0].id;
-        return Promise.all([
-          apiGetPetProfile(accessToken, petId),
-          apiGetPetSafetyProfile(accessToken, petId),
-        ] as const);
+        setPets(fetchedPets);
+        const storedId = localStorage.getItem(SELECTED_PET_KEY);
+        const storedStillExists = storedId && fetchedPets.some((p) => p.id === storedId);
+        setSelectedPetId(storedStillExists ? storedId : fetchedPets[0].id);
       })
-      .then((result) => {
-        if (cancelled || !result) return;
-        const [fetchedProfile, fetchedSafety] = result;
+      .catch((err) => {
+        if (cancelled) return;
+        setStatus("error");
+        if (!(err instanceof ApiError)) console.error(err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, router]);
+
+  // Refetch profile + safety data whenever the selected pet changes.
+  useEffect(() => {
+    if (!accessToken || !selectedPetId) return;
+    let cancelled = false;
+    setStatus("loading");
+
+    Promise.all([
+      apiGetPetProfile(accessToken, selectedPetId),
+      apiGetPetSafetyProfile(accessToken, selectedPetId),
+    ])
+      .then(([fetchedProfile, fetchedSafety]) => {
+        if (cancelled) return;
         setProfile(fetchedProfile);
         setSafety(fetchedSafety);
         setStatus("ready");
@@ -146,7 +172,19 @@ function ProfilePageContent() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, router]);
+  }, [accessToken, selectedPetId]);
+
+  function handleSelectPet(petId: string) {
+    setSwitcherOpen(false);
+    if (petId === selectedPetId) return;
+    localStorage.setItem(SELECTED_PET_KEY, petId);
+    setSelectedPetId(petId);
+  }
+
+  function handleAddPet() {
+    setSwitcherOpen(false);
+    router.push("/onboarding/pet-type");
+  }
 
   async function handleLogout() {
     await logout();
@@ -453,6 +491,27 @@ function ProfilePageContent() {
                   Edit
                 </button>
               </div>
+
+              {/* My Pets switcher */}
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-cream-100 p-2.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="text-xs font-600 text-bark-500">My Pets</span>
+                  <span className="flex items-center gap-1.5 rounded-full bg-cream-50 py-1 pl-1 pr-2.5 shadow-soft">
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-sm">
+                      {speciesEmoji[pet.species.toUpperCase()] ?? "🐾"}
+                    </span>
+                    <span className="truncate text-sm font-600 text-bark-700">{pet.name}</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSwitcherOpen(true)}
+                  className="shrink-0 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-600 text-violet-600"
+                >
+                  {pets.length > 1 ? "Switch / +" : "+ Add pet"}
+                </button>
+              </div>
+
               <div className="mt-3 flex items-center gap-3">
                 <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-b from-rose-200 to-amber-100 text-2xl">👤</span>
                 <div className="text-sm">
@@ -500,7 +559,82 @@ function ProfilePageContent() {
           </div>
         </main>
 
+        {switcherOpen && (
+          <PetSwitcherSheet
+            pets={pets}
+            selectedPetId={selectedPetId}
+            onSelect={handleSelectPet}
+            onAddPet={handleAddPet}
+            onClose={() => setSwitcherOpen(false)}
+          />
+        )}
+
         <BottomNav />
+      </div>
+    </div>
+  );
+}
+
+function PetSwitcherSheet({
+  pets,
+  selectedPetId,
+  onSelect,
+  onAddPet,
+  onClose,
+}: {
+  pets: Pet[];
+  selectedPetId: string | null;
+  onSelect: (petId: string) => void;
+  onAddPet: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-bark-700/40" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-t-3xl bg-cream-50 p-5 pb-8 shadow-card"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-lg font-700 text-bark-700">My Pets</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="grid h-8 w-8 place-items-center rounded-full bg-cream-200 text-bark-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-3 space-y-1.5">
+          {pets.map((p) => {
+            const isSelected = p.id === selectedPetId;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onSelect(p.id)}
+                className={`flex w-full items-center gap-3 rounded-xl p-2.5 text-left ${
+                  isSelected ? "bg-violet-50" : "bg-transparent"
+                }`}
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-xl">
+                  {speciesEmoji[p.species.toUpperCase()] ?? "🐾"}
+                </span>
+                <span className="flex-1 truncate font-600 text-bark-700">{p.name}</span>
+                {isSelected && <Check className="h-5 w-5 text-violet-600" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={onAddPet}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-violet-100 py-3 text-sm font-600 text-violet-600"
+        >
+          <Plus className="h-4 w-4" /> Add another pet
+        </button>
       </div>
     </div>
   );
