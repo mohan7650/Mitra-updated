@@ -42,9 +42,14 @@ const speciesEmoji: Record<string, string> = {
   RABBIT: "🐰",
   SMALL: "🐹",
   REPTILE: "🐢",
+  OTHER: "🐾",
 };
 
 const EMPTY = "Not added yet";
+
+function subtitleLabel(pet: { species: string; breed: string | null; customSpecies: string | null }): string {
+  return pet.species.toUpperCase() === "OTHER" ? pet.customSpecies ?? EMPTY : pet.breed ?? EMPTY;
+}
 
 function formatAge(dateOfBirth: string | null): string {
   if (!dateOfBirth) return EMPTY;
@@ -285,7 +290,7 @@ function ProfilePageContent() {
                 <BadgeCheck className="h-6 w-6 fill-sky-500 text-cream-50" />
               </div>
               <p className="text-sm text-bark-500">
-                {pet.breed ?? EMPTY} • {formatAge(pet.dateOfBirth)}
+                {subtitleLabel(pet)} • {formatAge(pet.dateOfBirth)}
               </p>
               {pet.personalityTraits.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5">

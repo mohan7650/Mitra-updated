@@ -106,6 +106,7 @@ export interface Pet {
   id: string;
   name: string;
   species: string;
+  customSpecies: string | null;
   breed: string | null;
   gender: string | null;
   dateOfBirth: string | null;
@@ -128,6 +129,7 @@ export interface Pet {
 export interface CreatePetInput {
   name: string;
   species: string;
+  customSpecies?: string;
   breed?: string;
   gender?: string;
   dateOfBirth?: string;
@@ -256,6 +258,7 @@ export interface PetProfile {
     id: string;
     name: string;
     species: string;
+    customSpecies: string | null;
     breed: string | null;
     dateOfBirth: string | null;
     gender: string | null;

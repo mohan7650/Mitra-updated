@@ -22,6 +22,10 @@ export class CreatePetDto {
 
   @IsOptional()
   @IsString()
+  customSpecies?: string;
+
+  @IsOptional()
+  @IsString()
   breed?: string;
 
   @IsOptional()

@@ -12,9 +12,25 @@ import { petTypes } from "@/lib/data";
 export default function PetTypePage() {
   const router = useRouter();
   const [selected, setSelected] = useState<string>("dog");
+  const [customSpecies, setCustomSpecies] = useState("");
+
+  const isOther = selected === "other";
+  const trimmedCustomSpecies = customSpecies.trim();
+  const canProceed = !isOther || trimmedCustomSpecies.length > 0;
+
+  function selectType(id: string) {
+    setSelected(id);
+    if (id !== "other") setCustomSpecies("");
+  }
 
   function handleNext() {
+    if (!canProceed) return;
     sessionStorage.setItem("mitra_pet_species", selected);
+    if (isOther) {
+      sessionStorage.setItem("mitra_pet_custom_species", trimmedCustomSpecies);
+    } else {
+      sessionStorage.removeItem("mitra_pet_custom_species");
+    }
     router.push("/onboarding/pet-details");
   }
 
@@ -59,7 +75,7 @@ export default function PetTypePage() {
               key={pet.id}
               pet={pet}
               selected={selected === pet.id}
-              onSelect={setSelected}
+              onSelect={selectType}
             />
           ))}
         </div>
@@ -67,10 +83,10 @@ export default function PetTypePage() {
         {/* Other */}
         <button
           type="button"
-          onClick={() => setSelected("other")}
-          aria-pressed={selected === "other"}
+          onClick={() => selectType("other")}
+          aria-pressed={isOther}
           className={`mt-3 flex w-full items-center justify-center gap-3 rounded-3xl bg-cream-50 py-4 shadow-soft transition ${
-            selected === "other" ? "ring-2 ring-forest-600" : "ring-1 ring-cream-300"
+            isOther ? "ring-2 ring-forest-600" : "ring-1 ring-cream-300"
           }`}
         >
           <span className="grid h-11 w-11 place-items-center rounded-full bg-cream-200 text-bark-500">
@@ -78,6 +94,20 @@ export default function PetTypePage() {
           </span>
           <span className="font-display text-lg font-600 text-bark-600">Other</span>
         </button>
+
+        {isOther && (
+          <div className="mt-3 rounded-2xl bg-cream-50 p-4 shadow-soft ring-1 ring-cream-200">
+            <label className="mb-2 block text-sm font-700 text-bark-700">
+              What kind of pet is it?
+            </label>
+            <input
+              value={customSpecies}
+              onChange={(e) => setCustomSpecies(e.target.value)}
+              placeholder="e.g. Ferret, Fish, Horse, Goat"
+              className="w-full rounded-xl bg-cream-100 px-3 py-3 text-[15px] text-bark-700 outline-none ring-1 ring-cream-300 focus:ring-forest-500"
+            />
+          </div>
+        )}
 
         {/* Privacy note */}
         <div className="mt-6 rounded-3xl bg-forest-400/10 px-5 py-4 text-center">
@@ -99,7 +129,8 @@ export default function PetTypePage() {
         <button
           type="button"
           onClick={handleNext}
-          className="mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-forest-600 font-display text-lg font-600 text-cream-50 shadow-card transition hover:bg-forest-700 active:scale-[0.99]"
+          disabled={!canProceed}
+          className="mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-forest-600 font-display text-lg font-600 text-cream-50 shadow-card transition hover:bg-forest-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
         >
           Next
           <ArrowRight className="h-5 w-5" />

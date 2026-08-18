@@ -182,6 +182,7 @@ export default function PetDetailsPage() {
   const { accessToken } = useAuth();
 
   const [species, setSpecies] = useState("dog");
+  const [customSpecies, setCustomSpecies] = useState("");
   const [name, setName] = useState("");
   const breeds = breedsBySpecies[species] ?? breedsBySpecies.other;
   const [breed, setBreed] = useState(breeds[0]);
@@ -209,7 +210,12 @@ export default function PetDetailsPage() {
       setSpecies(stored);
       setBreed((breedsBySpecies[stored] ?? breedsBySpecies.other)[0]);
     }
+    if (stored === "other") {
+      setCustomSpecies(sessionStorage.getItem("mitra_pet_custom_species") ?? "");
+    }
   }, []);
+
+  const displaySpecies = species === "other" ? customSpecies.trim() || "pet" : species;
 
   const sexOptions = [
     { id: "male", label: "Male", icon: <span className="text-base leading-none">♂</span> },
@@ -233,6 +239,7 @@ export default function PetDetailsPage() {
       const created = await apiCreatePet(accessToken, {
         name: name.trim(),
         species: species.toUpperCase(),
+        customSpecies: species === "other" ? customSpecies.trim() : undefined,
         breed,
         gender: sex.toUpperCase(),
         dateOfBirth: dob || undefined,
@@ -251,6 +258,7 @@ export default function PetDetailsPage() {
         favoriteTreats,
       });
       sessionStorage.removeItem("mitra_pet_species");
+      sessionStorage.removeItem("mitra_pet_custom_species");
       localStorage.setItem("mitra_selected_pet_id", created.id);
       router.push("/profile");
     } catch (err) {
@@ -292,7 +300,7 @@ export default function PetDetailsPage() {
           </div>
           <div>
             <h1 className="inline-flex items-start gap-1 font-display text-2xl font-700 leading-tight text-bark-700">
-              Tell us about your {species}
+              Tell us about your {displaySpecies}
               <Heart className="mt-1 h-3.5 w-3.5 fill-forest-500 text-forest-500" />
             </h1>
             <p className="mt-1 text-sm text-bark-500">
@@ -460,10 +468,10 @@ export default function PetDetailsPage() {
           <div>
             <p className="mb-2 font-display font-600 text-forest-600">Good to know (optional)</p>
             <div className="grid grid-cols-2 gap-3">
-              <YesNo question={`Is your ${species} microchipped?`} value={microchipped} onChange={setMicrochipped} />
-              <YesNo question={`Is your ${species} vaccinated?`} value={vaccinated} onChange={setVaccinated} />
-              <YesNo question={`Is your ${species} neutered?`} value={neutered} onChange={setNeutered} />
-              <YesNo question={`Does your ${species} have allergies?`} value={hasAllergies} onChange={setHasAllergies} />
+              <YesNo question={`Is your ${displaySpecies} microchipped?`} value={microchipped} onChange={setMicrochipped} />
+              <YesNo question={`Is your ${displaySpecies} vaccinated?`} value={vaccinated} onChange={setVaccinated} />
+              <YesNo question={`Is your ${displaySpecies} neutered?`} value={neutered} onChange={setNeutered} />
+              <YesNo question={`Does your ${displaySpecies} have allergies?`} value={hasAllergies} onChange={setHasAllergies} />
             </div>
           </div>
         </div>

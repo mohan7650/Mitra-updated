@@ -171,6 +171,7 @@ function EditProfilePageContent() {
 
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
+  const [customSpecies, setCustomSpecies] = useState("");
   const [dob, setDob] = useState("");
   const [sex, setSex] = useState<"MALE" | "FEMALE" | "UNKNOWN">("UNKNOWN");
   const [weight, setWeight] = useState("");
@@ -207,6 +208,7 @@ function EditProfilePageContent() {
         setPet(current);
         setName(current.name);
         setBreed(current.breed ?? "");
+        setCustomSpecies(current.customSpecies ?? "");
         setDob(current.dateOfBirth ? current.dateOfBirth.slice(0, 10) : "");
         const gender = current.gender?.toUpperCase();
         setSex(gender === "MALE" || gender === "FEMALE" ? gender : "UNKNOWN");
@@ -243,6 +245,10 @@ function EditProfilePageContent() {
       setError("Pet name cannot be empty.");
       return;
     }
+    if (pet.species.toUpperCase() === "OTHER" && !customSpecies.trim()) {
+      setError("Please enter what kind of pet it is.");
+      return;
+    }
     let parsedWeight: number | undefined;
     if (weight.trim()) {
       parsedWeight = parseFloat(weight);
@@ -261,6 +267,7 @@ function EditProfilePageContent() {
     try {
       await apiUpdatePet(accessToken, pet.id, {
         name: name.trim(),
+        customSpecies: pet.species.toUpperCase() === "OTHER" ? customSpecies.trim() : undefined,
         breed: breed || undefined,
         gender: sex,
         dateOfBirth: dob || undefined,
@@ -348,6 +355,20 @@ function EditProfilePageContent() {
               />
             </div>
           </Card>
+
+          {pet.species.toUpperCase() === "OTHER" && (
+            <Card>
+              <Label required>What kind of pet is it?</Label>
+              <div className="flex items-center rounded-xl bg-cream-100 ring-1 ring-cream-300 focus-within:ring-forest-500">
+                <input
+                  value={customSpecies}
+                  onChange={(e) => setCustomSpecies(e.target.value)}
+                  placeholder="e.g. Ferret, Fish, Horse, Goat"
+                  className="w-full bg-transparent px-3 py-3 text-[15px] text-bark-700 outline-none"
+                />
+              </div>
+            </Card>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <Card>

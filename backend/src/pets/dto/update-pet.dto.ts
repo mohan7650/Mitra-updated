@@ -24,6 +24,10 @@ export class UpdatePetDto {
 
   @IsOptional()
   @IsString()
+  customSpecies?: string;
+
+  @IsOptional()
+  @IsString()
   breed?: string;
 
   @IsOptional()
