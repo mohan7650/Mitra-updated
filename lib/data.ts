@@ -17,18 +17,70 @@ export const petTypes: PetType[] = [
   { id: "reptile", label: "Reptile", emoji: "🐢", ring: "bg-forest-500/15", paw: "text-forest-500" },
 ];
 
-// ---- Onboarding: dog-details select options ---------------------------
+// ---- Onboarding: pet-details select options ----------------------------
 
-export const breeds = [
-  "Golden Retriever",
-  "Labrador Retriever",
-  "German Shepherd",
-  "Shiba Inu",
-  "Poodle",
-  "Beagle",
-  "Bulldog",
-  "Other",
-];
+export const breedsBySpecies: Record<string, string[]> = {
+  dog: [
+    "Golden Retriever",
+    "Labrador Retriever",
+    "German Shepherd",
+    "Shiba Inu",
+    "Poodle",
+    "Beagle",
+    "Bulldog",
+    "Other",
+  ],
+  cat: [
+    "Domestic Shorthair",
+    "Maine Coon",
+    "Siamese",
+    "Persian",
+    "Bengal",
+    "British Shorthair",
+    "Ragdoll",
+    "Other",
+  ],
+  bird: [
+    "Budgerigar",
+    "Cockatiel",
+    "African Grey",
+    "Macaw",
+    "Canary",
+    "Lovebird",
+    "Cockatoo",
+    "Other",
+  ],
+  rabbit: [
+    "Holland Lop",
+    "Netherland Dwarf",
+    "Mini Rex",
+    "Lionhead",
+    "Flemish Giant",
+    "Dutch",
+    "Other",
+  ],
+  small: [
+    "Hamster",
+    "Guinea Pig",
+    "Gerbil",
+    "Chinchilla",
+    "Ferret",
+    "Mouse",
+    "Other",
+  ],
+  reptile: [
+    "Bearded Dragon",
+    "Leopard Gecko",
+    "Ball Python",
+    "Corn Snake",
+    "Red-Eared Slider",
+    "Chameleon",
+    "Other",
+  ],
+  other: ["Other"],
+};
+
+export const breeds = breedsBySpecies.dog;
 
 export const sizes = [
   "Small (0 - 10 kg)",

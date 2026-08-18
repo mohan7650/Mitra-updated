@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Calendar,
   PawPrint,
-  Bone,
   Ruler,
   Scale,
   Palette,
@@ -22,9 +21,19 @@ import {
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import ProgressBar from "@/components/onboarding/ProgressBar";
-import { breeds, sizes, coatTypes, coatColors } from "@/lib/data";
+import { breedsBySpecies, sizes, coatTypes, coatColors } from "@/lib/data";
 import { useAuth } from "@/lib/AuthContext";
 import { apiCreatePet, ApiError } from "@/lib/api";
+
+const speciesEmoji: Record<string, string> = {
+  dog: "🐶",
+  cat: "🐱",
+  bird: "🦜",
+  rabbit: "🐰",
+  small: "🐹",
+  reptile: "🐢",
+  other: "🐾",
+};
 
 /* ---- small building blocks ------------------------------------------- */
 
@@ -51,18 +60,18 @@ function Select({
   options,
   onChange,
 }: {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   value: string;
   options: string[];
   onChange?: (value: string) => void;
 }) {
   return (
     <div className="relative flex items-center rounded-xl bg-cream-100 ring-1 ring-cream-300 focus-within:ring-forest-500">
-      <span className="pl-3 text-bark-500">{icon}</span>
+      {icon && <span className="pl-3 text-bark-500">{icon}</span>}
       <select
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        className="w-full appearance-none bg-transparent py-3 pl-2 pr-8 text-[15px] text-bark-700 outline-none"
+        className={`w-full appearance-none bg-transparent py-3 ${icon ? "pl-2" : "pl-3"} pr-8 text-[15px] text-bark-700 outline-none`}
       >
         {options.map((o) => (
           <option key={o}>{o}</option>
@@ -112,6 +121,7 @@ export default function PetDetailsPage() {
 
   const [species, setSpecies] = useState("dog");
   const [name, setName] = useState("");
+  const breeds = breedsBySpecies[species] ?? breedsBySpecies.other;
   const [breed, setBreed] = useState(breeds[0]);
   const [dob, setDob] = useState("");
   const [sex, setSex] = useState<"male" | "female" | "unknown">("male");
@@ -121,7 +131,10 @@ export default function PetDetailsPage() {
 
   useEffect(() => {
     const stored = sessionStorage.getItem("mitra_pet_species");
-    if (stored) setSpecies(stored);
+    if (stored) {
+      setSpecies(stored);
+      setBreed((breedsBySpecies[stored] ?? breedsBySpecies.other)[0]);
+    }
   }, []);
 
   const sexOptions = [
@@ -183,7 +196,7 @@ export default function PetDetailsPage() {
         <div className="mt-6 flex items-center gap-4">
           <div className="relative">
             <div className="grid h-24 w-24 place-items-center rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-5xl ring-4 ring-cream-50">
-              🐶
+              {speciesEmoji[species] ?? speciesEmoji.other}
             </div>
             <span className="absolute bottom-1 right-1 grid h-8 w-8 place-items-center rounded-full bg-forest-600 text-cream-50 ring-2 ring-cream-100">
               <Camera className="h-4 w-4" />
@@ -191,7 +204,7 @@ export default function PetDetailsPage() {
           </div>
           <div>
             <h1 className="inline-flex items-start gap-1 font-display text-2xl font-700 leading-tight text-bark-700">
-              Tell us about your dog
+              Tell us about your {species}
               <Heart className="mt-1 h-3.5 w-3.5 fill-forest-500 text-forest-500" />
             </h1>
             <p className="mt-1 text-sm text-bark-500">
@@ -221,7 +234,7 @@ export default function PetDetailsPage() {
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <Label required>Breed</Label>
-              <Select icon={<Bone className="h-4 w-4" />} value={breed} options={breeds} onChange={setBreed} />
+              <Select value={breed} options={breeds} onChange={setBreed} />
             </Card>
             <Card>
               <Label required>Date of Birth</Label>
@@ -336,10 +349,10 @@ export default function PetDetailsPage() {
           <div>
             <p className="mb-2 font-display font-600 text-forest-600">Good to know (optional)</p>
             <div className="grid grid-cols-2 gap-3">
-              <YesNo question="Is your dog microchipped?" defaultYes />
-              <YesNo question="Is your dog vaccinated?" defaultYes />
-              <YesNo question="Is your dog neutered?" defaultYes={false} />
-              <YesNo question="Does your dog have allergies?" defaultYes={false} />
+              <YesNo question={`Is your ${species} microchipped?`} defaultYes />
+              <YesNo question={`Is your ${species} vaccinated?`} defaultYes />
+              <YesNo question={`Is your ${species} neutered?`} defaultYes={false} />
+              <YesNo question={`Does your ${species} have allergies?`} defaultYes={false} />
             </div>
           </div>
         </div>
