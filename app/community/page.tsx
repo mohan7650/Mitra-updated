@@ -5,6 +5,7 @@ import {
   Check, X, Calendar, MapPin,
 } from "lucide-react";
 import BottomNav from "@/components/home/BottomNav";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import {
   communityShortcuts, petsNearYou, connectionRequests, meetups,
 } from "@/lib/data";
@@ -16,6 +17,14 @@ function Sex({ s }: { s: string }) {
 }
 
 export default function CommunityPage() {
+  return (
+    <ProtectedRoute>
+      <CommunityPageContent />
+    </ProtectedRoute>
+  );
+}
+
+function CommunityPageContent() {
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="mx-auto flex min-h-screen max-w-md flex-col">

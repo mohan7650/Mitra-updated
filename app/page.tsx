@@ -53,14 +53,14 @@ export default function WelcomePage() {
         {/* Primary actions */}
         <div className="mt-8 space-y-3">
           <Link
-            href="/onboarding/pet-type"
+            href="/signup"
             className="flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-forest-600 font-display text-lg font-600 text-cream-50 shadow-card transition hover:bg-forest-700 active:scale-[0.99]"
           >
             <PawPrint className="h-5 w-5 fill-current" />
             Create Account
           </Link>
           <Link
-            href="/home"
+            href="/signin"
             className="flex h-14 w-full items-center justify-center gap-2.5 rounded-full border-2 border-forest-600 bg-transparent font-display text-lg font-600 text-forest-600 transition hover:bg-forest-600/5 active:scale-[0.99]"
           >
             <User className="h-5 w-5" />
@@ -70,7 +70,7 @@ export default function WelcomePage() {
 
         <p className="mt-4 text-center text-sm text-bark-500">
           Already have an account?{" "}
-          <Link href="/home" className="font-700 text-forest-600 underline-offset-2 hover:underline">
+          <Link href="/signin" className="font-700 text-forest-600 underline-offset-2 hover:underline">
             Sign in
           </Link>
         </p>
