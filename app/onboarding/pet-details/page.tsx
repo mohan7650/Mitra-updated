@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,6 +23,8 @@ import {
 import Logo from "@/components/Logo";
 import ProgressBar from "@/components/onboarding/ProgressBar";
 import { breeds, sizes, coatTypes, coatColors } from "@/lib/data";
+import { useAuth } from "@/lib/AuthContext";
+import { apiCreatePet, ApiError } from "@/lib/api";
 
 /* ---- small building blocks ------------------------------------------- */
 
@@ -46,16 +49,19 @@ function Select({
   icon,
   value,
   options,
+  onChange,
 }: {
   icon: React.ReactNode;
   value: string;
   options: string[];
+  onChange?: (value: string) => void;
 }) {
   return (
     <div className="relative flex items-center rounded-xl bg-cream-100 ring-1 ring-cream-300 focus-within:ring-forest-500">
       <span className="pl-3 text-bark-500">{icon}</span>
       <select
-        defaultValue={value}
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
         className="w-full appearance-none bg-transparent py-3 pl-2 pr-8 text-[15px] text-bark-700 outline-none"
       >
         {options.map((o) => (
@@ -101,15 +107,57 @@ function YesNo({ question, defaultYes }: { question: string; defaultYes: boolean
 /* ---- page ------------------------------------------------------------- */
 
 export default function PetDetailsPage() {
-  const [name, setName] = useState("Rocky");
+  const router = useRouter();
+  const { accessToken } = useAuth();
+
+  const [species, setSpecies] = useState("dog");
+  const [name, setName] = useState("");
+  const [breed, setBreed] = useState(breeds[0]);
+  const [dob, setDob] = useState("");
   const [sex, setSex] = useState<"male" | "female" | "unknown">("male");
-  const [notes, setNotes] = useState("Small white patch on chest");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("mitra_pet_species");
+    if (stored) setSpecies(stored);
+  }, []);
 
   const sexOptions = [
     { id: "male", label: "Male", icon: <span className="text-base leading-none">♂</span> },
     { id: "female", label: "Female", icon: <span className="text-base leading-none">♀</span> },
     { id: "unknown", label: "Unknown", icon: <HelpCircle className="h-4 w-4" /> },
   ] as const;
+
+  async function handleSubmit() {
+    if (!accessToken) {
+      setError("You need to be signed in to create a pet profile.");
+      return;
+    }
+    if (!name.trim()) {
+      setError("Please enter your pet's name.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await apiCreatePet(accessToken, {
+        name: name.trim(),
+        species: species.toUpperCase(),
+        breed,
+        gender: sex.toUpperCase(),
+        dateOfBirth: dob || undefined,
+        bio: notes || undefined,
+      });
+      sessionStorage.removeItem("mitra_pet_species");
+      router.push("/home");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <main className="min-h-screen paw-texture bg-gradient-to-b from-cream-100 to-cream-200">
@@ -173,14 +221,18 @@ export default function PetDetailsPage() {
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <Label required>Breed</Label>
-              <Select icon={<Bone className="h-4 w-4" />} value="Golden Retriever" options={breeds} />
+              <Select icon={<Bone className="h-4 w-4" />} value={breed} options={breeds} onChange={setBreed} />
             </Card>
             <Card>
               <Label required>Date of Birth</Label>
-              <div className="flex items-center rounded-xl bg-cream-100 py-3 pl-3 pr-3 ring-1 ring-cream-300">
+              <div className="flex items-center rounded-xl bg-cream-100 py-1 pl-3 pr-3 ring-1 ring-cream-300">
                 <Calendar className="h-4 w-4 text-bark-500" />
-                <span className="ml-2 flex-1 text-[15px] text-bark-700">May 12, 2024</span>
-                <CheckCircle2 className="h-5 w-5 fill-forest-600 text-cream-50" />
+                <input
+                  type="date"
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                  className="ml-2 w-full flex-1 bg-transparent py-2 text-[15px] text-bark-700 outline-none"
+                />
               </div>
             </Card>
           </div>
@@ -292,14 +344,18 @@ export default function PetDetailsPage() {
           </div>
         </div>
 
+        {error && <p className="mt-4 text-center text-sm text-coral-500">{error}</p>}
+
         {/* Next */}
-        <Link
-          href="/home"
-          className="mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-forest-600 font-display text-lg font-600 text-cream-50 shadow-card transition hover:bg-forest-700 active:scale-[0.99]"
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-forest-600 font-display text-lg font-600 text-cream-50 shadow-card transition hover:bg-forest-700 active:scale-[0.99] disabled:opacity-60"
         >
-          Next
+          {submitting ? "Creating…" : "Next"}
           <ArrowRight className="h-5 w-5" />
-        </Link>
+        </button>
         <p className="mt-3 flex items-center justify-center gap-1 text-sm text-bark-500">
           You can always update these details later.
           <Heart className="h-3.5 w-3.5 fill-forest-500 text-forest-500" />

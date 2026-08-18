@@ -22,7 +22,7 @@ interface AuthContextValue {
   accessToken: string | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<string>;
   register: (data: {
     firstName: string;
     lastName: string;
@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { user, accessToken } = await apiLogin({ email, password });
     setUser(user);
     setAccessToken(accessToken);
+    return accessToken;
   }, []);
 
   const register = useCallback(

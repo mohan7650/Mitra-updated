@@ -17,8 +17,27 @@ model User {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   refreshTokens RefreshToken[]
+  pets          Pet[]
 
   @@map("users")
+}
+
+model Pet {
+  id          String    @id @default(uuid())
+  name        String
+  species     String
+  breed       String?
+  gender      String?
+  dateOfBirth DateTime? @map("date_of_birth")
+  bio         String?
+  ownerId     String    @map("owner_id")
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([ownerId])
+  @@map("pets")
 }
 
 model RefreshToken {

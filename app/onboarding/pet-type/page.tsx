@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, PawPrint, ShieldCheck, Heart } from "lucide-react";
 import Logo from "@/components/Logo";
 import ProgressBar from "@/components/onboarding/ProgressBar";
@@ -9,7 +10,13 @@ import PetTypeCard from "@/components/onboarding/PetTypeCard";
 import { petTypes } from "@/lib/data";
 
 export default function PetTypePage() {
+  const router = useRouter();
   const [selected, setSelected] = useState<string>("dog");
+
+  function handleNext() {
+    sessionStorage.setItem("mitra_pet_species", selected);
+    router.push("/onboarding/pet-details");
+  }
 
   return (
     <main className="min-h-screen paw-texture bg-gradient-to-b from-cream-100 to-cream-200">
@@ -89,13 +96,14 @@ export default function PetTypePage() {
         </div>
 
         {/* Next */}
-        <Link
-          href="/onboarding/pet-details"
+        <button
+          type="button"
+          onClick={handleNext}
           className="mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-forest-600 font-display text-lg font-600 text-cream-50 shadow-card transition hover:bg-forest-700 active:scale-[0.99]"
         >
           Next
           <ArrowRight className="h-5 w-5" />
-        </Link>
+        </button>
       </div>
     </main>
   );

@@ -83,3 +83,45 @@ export async function apiGetMe(accessToken: string): Promise<AuthUser | null> {
   if (!res.ok) return null;
   return res.json();
 }
+
+export interface Pet {
+  id: string;
+  name: string;
+  species: string;
+  breed: string | null;
+  gender: string | null;
+  dateOfBirth: string | null;
+  bio: string | null;
+}
+
+export interface CreatePetInput {
+  name: string;
+  species: string;
+  breed?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  bio?: string;
+}
+
+export async function apiCreatePet(accessToken: string, data: CreatePetInput): Promise<Pet> {
+  const res = await fetch(`${API_URL}/pets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
+export async function apiGetPets(accessToken: string): Promise<Pet[]> {
+  const res = await fetch(`${API_URL}/pets`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}

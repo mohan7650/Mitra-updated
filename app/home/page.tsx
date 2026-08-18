@@ -1,10 +1,25 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Menu, Search, Bell } from "lucide-react";
 import Logo from "@/components/Logo";
 import StoryRail from "@/components/home/StoryRail";
 import PostCard from "@/components/home/PostCard";
 import BottomNav from "@/components/home/BottomNav";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/lib/AuthContext";
+import { apiGetPets, Pet } from "@/lib/api";
 import { posts } from "@/lib/data";
+
+const petEmoji: Record<string, string> = {
+  DOG: "🐶",
+  CAT: "🐱",
+  BIRD: "🦜",
+  RABBIT: "🐰",
+  SMALL: "🐹",
+  REPTILE: "🐢",
+};
 
 export default function HomePage() {
   return (
@@ -15,6 +30,25 @@ export default function HomePage() {
 }
 
 function HomePageContent() {
+  const router = useRouter();
+  const { accessToken } = useAuth();
+  const [pets, setPets] = useState<Pet[] | null>(null);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    apiGetPets(accessToken)
+      .then((fetched) => {
+        if (fetched.length === 0) {
+          router.replace("/onboarding/pet-type");
+          return;
+        }
+        setPets(fetched);
+      })
+      .catch(() => setPets([]));
+  }, [accessToken, router]);
+
+  const primaryPet = pets?.[0];
+
   return (
     <div className="min-h-screen bg-cream-100">
       <div className="mx-auto flex min-h-screen max-w-md flex-col">
@@ -49,8 +83,11 @@ function HomePageContent() {
                   3
                 </span>
               </button>
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-xl ring-2 ring-coral-400">
-                🐶
+              <span
+                title={primaryPet?.name}
+                className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-xl ring-2 ring-coral-400"
+              >
+                {primaryPet ? petEmoji[primaryPet.species] ?? "🐾" : "🐾"}
               </span>
             </div>
           </div>

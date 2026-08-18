@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, User } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/lib/AuthContext";
-import { ApiError } from "@/lib/api";
+import { apiGetPets, ApiError } from "@/lib/api";
 
 export default function SigninPage() {
   const router = useRouter();
@@ -22,8 +22,9 @@ export default function SigninPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await login(email, password);
-      router.push("/home");
+      const accessToken = await login(email, password);
+      const pets = await apiGetPets(accessToken).catch(() => []);
+      router.push(pets.length > 0 ? "/home" : "/onboarding/pet-type");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
