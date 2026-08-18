@@ -7,9 +7,5 @@ export class UpsertPetSafetyProfileDto {
 
   @IsOptional()
   @IsString()
-  qrCodeId?: string;
-
-  @IsOptional()
-  @IsString()
   emergencyNotes?: string;
 }

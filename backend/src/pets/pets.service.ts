@@ -107,7 +107,7 @@ export class PetsService {
     if (!pet) throw new NotFoundException('Pet not found');
     if (pet.ownerId !== ownerId) throw new ForbiddenException();
 
-    const [emergencyContacts, pawMoments, pawPalsSent, pawPalsReceived] = await Promise.all([
+    const [emergencyContacts, pawMoments, pawPalsSent, pawPalsReceived, nextCheckup] = await Promise.all([
       this.prisma.emergencyContact.findMany({
         where: { userId: ownerId },
         select: { id: true, name: true, relationship: true, phone: true },
@@ -115,6 +115,11 @@ export class PetsService {
       this.prisma.petPost.count({ where: { petId: id } }),
       this.prisma.petConnection.count({ where: { requesterId: id, status: 'ACCEPTED' } }),
       this.prisma.petConnection.count({ where: { receiverId: id, status: 'ACCEPTED' } }),
+      this.prisma.reminder.findFirst({
+        where: { petId: id, type: 'CHECKUP', completed: false, dueAt: { gte: new Date() } },
+        orderBy: { dueAt: 'asc' },
+        select: { id: true, title: true, dueAt: true },
+      }),
     ]);
 
     const latestWeightRecord = pet.weightRecords[0];
@@ -159,6 +164,7 @@ export class PetsService {
         activeMedications: pet.medications,
         allergies: pet.allergies,
         latestWeight,
+        nextCheckup: nextCheckup ?? null,
       },
       emergencyContacts,
       safetyProfile: pet.safetyProfile ?? null,

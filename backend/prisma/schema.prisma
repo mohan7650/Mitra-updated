@@ -294,7 +294,7 @@ model PetSafetyProfile {
   petId           String  @unique @map("pet_id")
   pet             Pet     @relation(fields: [petId], references: [id], onDelete: Cascade)
   microchipNumber String? @map("microchip_number")
-  qrCodeId        String? @map("qr_code_id")
+  qrCodeId        String? @unique @map("qr_code_id")
   emergencyNotes  String? @map("emergency_notes")
 
   createdAt DateTime @default(now()) @map("created_at")
