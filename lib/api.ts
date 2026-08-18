@@ -231,6 +231,12 @@ export interface ProfileLatestWeight {
   source: "record" | "pet";
 }
 
+export interface ProfileNextCheckup {
+  id: string;
+  title: string;
+  dueAt: string;
+}
+
 export interface ProfileEmergencyContact {
   id: string;
   name: string;
@@ -275,6 +281,7 @@ export interface PetProfile {
     activeMedications: ProfileActiveMedication[];
     allergies: ProfileAllergy[];
     latestWeight: ProfileLatestWeight | null;
+    nextCheckup: ProfileNextCheckup | null;
   };
   emergencyContacts: ProfileEmergencyContact[];
   safetyProfile: ProfileSafetyProfile | null;
@@ -293,6 +300,58 @@ export async function apiGetPetProfile(accessToken: string, petId: string): Prom
   return res.json();
 }
 
+// Fetching the safety profile lazily creates it (and its QR code) on the backend
+// the first time it's requested, so the returned qrCodeId is always present.
+export async function apiGetPetSafetyProfile(
+  accessToken: string,
+  petId: string,
+): Promise<ProfileSafetyProfile> {
+  const res = await fetch(`${API_URL}/pets/${petId}/safety-profile`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
+export async function apiUpdatePetSafetyProfile(
+  accessToken: string,
+  petId: string,
+  data: { microchipNumber?: string; emergencyNotes?: string },
+): Promise<ProfileSafetyProfile> {
+  const res = await fetch(`${API_URL}/pets/${petId}/safety-profile`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
+// Public, no-auth lookup used by the /pet-id/[qrCodeId] page — only ever
+// returns safe, non-account fields (see backend PetSafetyService.findByQrCode).
+export interface PublicPetSafetyInfo {
+  qrCodeId: string;
+  petName: string;
+  species: string;
+  breed: string | null;
+  emergencyNotes: string | null;
+  profilePhotoUrl: string | null;
+}
+
+export async function apiGetPublicPetByQr(qrCodeId: string): Promise<PublicPetSafetyInfo | null> {
+  const res = await fetch(`${API_URL}/public/pets/qr/${qrCodeId}`, {
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
 async function getForPet<T>(accessToken: string, petId: string, resource: string): Promise<T> {
   const res = await fetch(`${API_URL}/pets/${petId}/${resource}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -300,6 +359,43 @@ async function getForPet<T>(accessToken: string, petId: string, resource: string
   });
   if (!res.ok) throw new ApiError(res.status, await parseError(res));
   return res.json();
+}
+
+async function postForPet<T>(accessToken: string, petId: string, resource: string, data: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}/pets/${petId}/${resource}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
+async function patchResource<T>(accessToken: string, resource: string, id: string, data: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}/${resource}/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
+async function deleteResource(accessToken: string, resource: string, id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/${resource}/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
 }
 
 export interface Vaccination {
@@ -401,6 +497,131 @@ export async function apiGetReminders(accessToken: string): Promise<Reminder[]> 
   });
   if (!res.ok) throw new ApiError(res.status, await parseError(res));
   return res.json();
+}
+
+// Vaccinations
+
+export interface VaccinationInput {
+  name: string;
+  dateGiven?: string;
+  nextDueDate?: string;
+  provider?: string;
+  notes?: string;
+}
+
+export function apiCreateVaccination(accessToken: string, petId: string, data: VaccinationInput): Promise<Vaccination> {
+  return postForPet(accessToken, petId, "vaccinations", data);
+}
+
+export function apiUpdateVaccination(accessToken: string, id: string, data: Partial<VaccinationInput>): Promise<Vaccination> {
+  return patchResource(accessToken, "vaccinations", id, data);
+}
+
+export function apiDeleteVaccination(accessToken: string, id: string): Promise<void> {
+  return deleteResource(accessToken, "vaccinations", id);
+}
+
+// Medications
+
+export interface MedicationInput {
+  name: string;
+  dosage?: string;
+  frequency?: string;
+  startDate?: string;
+  endDate?: string;
+  active?: boolean;
+}
+
+export function apiCreateMedication(accessToken: string, petId: string, data: MedicationInput): Promise<Medication> {
+  return postForPet(accessToken, petId, "medications", data);
+}
+
+export function apiUpdateMedication(accessToken: string, id: string, data: Partial<MedicationInput>): Promise<Medication> {
+  return patchResource(accessToken, "medications", id, data);
+}
+
+export function apiDeleteMedication(accessToken: string, id: string): Promise<void> {
+  return deleteResource(accessToken, "medications", id);
+}
+
+// Allergies
+
+export interface AllergyInput {
+  name: string;
+  severity?: string;
+  notes?: string;
+}
+
+export function apiCreateAllergy(accessToken: string, petId: string, data: AllergyInput): Promise<Allergy> {
+  return postForPet(accessToken, petId, "allergies", data);
+}
+
+export function apiUpdateAllergy(accessToken: string, id: string, data: Partial<AllergyInput>): Promise<Allergy> {
+  return patchResource(accessToken, "allergies", id, data);
+}
+
+export function apiDeleteAllergy(accessToken: string, id: string): Promise<void> {
+  return deleteResource(accessToken, "allergies", id);
+}
+
+// Weight records — create only; history is immutable, no update endpoint
+
+export interface WeightRecordInput {
+  weight: number;
+  unit: string;
+  recordedAt?: string;
+}
+
+export function apiCreateWeightRecord(accessToken: string, petId: string, data: WeightRecordInput): Promise<WeightRecord> {
+  return postForPet(accessToken, petId, "weight-records", data);
+}
+
+export function apiDeleteWeightRecord(accessToken: string, id: string): Promise<void> {
+  return deleteResource(accessToken, "weight-records", id);
+}
+
+// Medical records
+
+export interface MedicalRecordInput {
+  recordType: string;
+  title: string;
+  description?: string;
+  recordDate: string;
+  vetName?: string;
+}
+
+export function apiCreateMedicalRecord(accessToken: string, petId: string, data: MedicalRecordInput): Promise<MedicalRecord> {
+  return postForPet(accessToken, petId, "medical-records", data);
+}
+
+export function apiUpdateMedicalRecord(accessToken: string, id: string, data: Partial<MedicalRecordInput>): Promise<MedicalRecord> {
+  return patchResource(accessToken, "medical-records", id, data);
+}
+
+export function apiDeleteMedicalRecord(accessToken: string, id: string): Promise<void> {
+  return deleteResource(accessToken, "medical-records", id);
+}
+
+// Grooming records
+
+export interface GroomingRecordInput {
+  serviceType: string;
+  provider?: string;
+  date: string;
+  nextDueDate?: string;
+  notes?: string;
+}
+
+export function apiCreateGroomingRecord(accessToken: string, petId: string, data: GroomingRecordInput): Promise<GroomingRecord> {
+  return postForPet(accessToken, petId, "grooming-records", data);
+}
+
+export function apiUpdateGroomingRecord(accessToken: string, id: string, data: Partial<GroomingRecordInput>): Promise<GroomingRecord> {
+  return patchResource(accessToken, "grooming-records", id, data);
+}
+
+export function apiDeleteGroomingRecord(accessToken: string, id: string): Promise<void> {
+  return deleteResource(accessToken, "grooming-records", id);
 }
 
 export interface PostPetSummary {

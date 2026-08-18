@@ -8,11 +8,14 @@ import {
   Image as ImageIcon, Gift, ShieldCheck, Phone, ScanLine,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import Qr from "@/components/Qr";
+import PetQrCode from "@/components/PetQrCode";
 import BottomNav from "@/components/home/BottomNav";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/lib/AuthContext";
-import { apiGetPets, apiGetPetProfile, PetProfile, ApiError } from "@/lib/api";
+import {
+  apiGetPets, apiGetPetProfile, apiGetPetSafetyProfile,
+  PetProfile, ProfileSafetyProfile, ApiError,
+} from "@/lib/api";
 import {
   profileTabs, highlights,
   personalityTraitOptions, favoriteActivityOptions, favoriteTreatOptions, optionLabel,
@@ -107,6 +110,7 @@ function ProfilePageContent() {
   const router = useRouter();
 
   const [profile, setProfile] = useState<PetProfile | null>(null);
+  const [safety, setSafety] = useState<ProfileSafetyProfile | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
@@ -120,11 +124,17 @@ function ProfilePageContent() {
           router.replace("/onboarding/pet-type");
           return;
         }
-        return apiGetPetProfile(accessToken, pets[0].id);
+        const petId = pets[0].id;
+        return Promise.all([
+          apiGetPetProfile(accessToken, petId),
+          apiGetPetSafetyProfile(accessToken, petId),
+        ] as const);
       })
-      .then((fetchedProfile) => {
-        if (cancelled || !fetchedProfile) return;
+      .then((result) => {
+        if (cancelled || !result) return;
+        const [fetchedProfile, fetchedSafety] = result;
         setProfile(fetchedProfile);
+        setSafety(fetchedSafety);
         setStatus("ready");
       })
       .catch((err) => {
@@ -166,7 +176,7 @@ function ProfilePageContent() {
     );
   }
 
-  const { pet, owner, profilePhoto, health, emergencyContacts, safetyProfile, socialStats } = profile;
+  const { pet, owner, profilePhoto, health, emergencyContacts, socialStats } = profile;
   const primaryContact = emergencyContacts[0] ?? null;
   const primaryMedication = health.activeMedications[0] ?? null;
   const ownerName = `${owner.firstName} ${owner.lastName}`.trim();
@@ -206,7 +216,7 @@ function ProfilePageContent() {
     image: ImageIcon, users: Users, calendar: Calendar, gift: Gift,
   };
 
-  const safetyBlurb = safetyProfile?.emergencyNotes || `${pet.name}’s QR can help reunite you if they get lost.`;
+  const safetyBlurb = safety?.emergencyNotes || `${pet.name}’s QR can help reunite you if they get lost.`;
 
   return (
     <div className="min-h-screen bg-cream-100">
@@ -286,10 +296,14 @@ function ProfilePageContent() {
               </div>
               <p className="mt-0.5 text-xs text-bark-500">Scan my QR if I get lost 🐾</p>
               <p className="mt-3 text-sm text-bark-600">
-                Pet ID: <span className="font-700 text-bark-700">Not generated yet</span>
+                Pet ID: <span className="font-700 text-bark-700">{safety?.qrCodeId ?? "Generating…"}</span>
               </p>
             </div>
-            <Qr size={74} />
+            {safety?.qrCodeId ? (
+              <PetQrCode qrCodeId={safety.qrCodeId} size={74} />
+            ) : (
+              <div className="grid h-[74px] w-[74px] place-items-center rounded-md bg-cream-200" />
+            )}
           </div>
 
           {/* Actions */}
@@ -385,12 +399,14 @@ function ProfilePageContent() {
                 <h3 className="flex items-center gap-2 font-display text-lg font-700 text-bark-700">
                   <HeartPulse className="h-5 w-5 text-emerald-500" /> Health Summary
                 </h3>
-                <button className="flex items-center gap-0.5 text-sm font-600 text-sky-500">View All <ChevronRight className="h-4 w-4" /></button>
+                <Link href="/profile/health" className="flex items-center gap-0.5 text-sm font-600 text-sky-500">
+                  View All <ChevronRight className="h-4 w-4" />
+                </Link>
               </div>
               <div className="mt-3 flex items-center gap-3 rounded-xl bg-emerald-50 p-3">
                 <ShieldCheck className="h-6 w-6 shrink-0 text-emerald-500" />
                 <div>
-                  <p className="font-700 text-emerald-600">Health information</p>
+                  <p className="font-700 text-emerald-600">Health records available</p>
                   <p className="text-xs text-bark-500">Vaccinations, medications & allergies below.</p>
                 </div>
               </div>
@@ -401,7 +417,12 @@ function ProfilePageContent() {
                   date={health.nextVaccination ? formatDate(health.nextVaccination.nextDueDate) : ""}
                   note={health.nextVaccination ? formatRelative(health.nextVaccination.nextDueDate) : ""}
                 />
-                <HealthRow label="Next Checkup" name="Not scheduled" date="" note="" />
+                <HealthRow
+                  label="Next Checkup"
+                  name={health.nextCheckup?.title ?? "Not scheduled"}
+                  date={health.nextCheckup ? formatDate(health.nextCheckup.dueAt) : ""}
+                  note={health.nextCheckup ? formatRelative(health.nextCheckup.dueAt) : ""}
+                />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-bark-500">Active Medications</p>
@@ -410,9 +431,12 @@ function ProfilePageContent() {
                   <span className="text-bark-500">{primaryMedication?.frequency ?? ""}</span>
                 </div>
               </div>
-              <button className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-emerald-50 py-2.5 text-sm font-600 text-emerald-600">
+              <Link
+                href="/profile/health"
+                className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-emerald-50 py-2.5 text-sm font-600 text-emerald-600"
+              >
                 View Health Records <ChevronRight className="h-4 w-4" />
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -457,11 +481,21 @@ function ProfilePageContent() {
               </div>
               <div className="mt-3 flex items-center gap-3">
                 <p className="flex-1 text-sm text-bark-600">{safetyBlurb}</p>
-                <Qr size={60} />
+                {safety?.qrCodeId ? (
+                  <PetQrCode qrCodeId={safety.qrCodeId} size={60} />
+                ) : (
+                  <div className="h-[60px] w-[60px] rounded-md bg-cream-200" />
+                )}
               </div>
-              <button className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-amber-50 py-2.5 text-sm font-600 text-amber-600">
-                View Pet ID Card
-              </button>
+              {safety?.qrCodeId && (
+                <Link
+                  href={`/pet-id/${safety.qrCodeId}`}
+                  target="_blank"
+                  className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl bg-amber-50 py-2.5 text-sm font-600 text-amber-600"
+                >
+                  View Pet ID Card
+                </Link>
+              )}
             </div>
           </div>
         </main>
