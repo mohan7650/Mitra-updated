@@ -171,6 +171,7 @@ function EditProfilePageContent() {
 
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
+  const [customBreed, setCustomBreed] = useState("");
   const [customSpecies, setCustomSpecies] = useState("");
   const [dob, setDob] = useState("");
   const [sex, setSex] = useState<"MALE" | "FEMALE" | "UNKNOWN">("UNKNOWN");
@@ -207,7 +208,14 @@ function EditProfilePageContent() {
         const current = pets.find((p) => p.id === storedId) ?? pets[0];
         setPet(current);
         setName(current.name);
-        setBreed(current.breed ?? "");
+        const knownBreeds = breedsBySpecies[current.species.toLowerCase()] ?? breedsBySpecies.other;
+        if (current.breed && !knownBreeds.includes(current.breed)) {
+          setBreed("Other");
+          setCustomBreed(current.breed);
+        } else {
+          setBreed(current.breed ?? "");
+          setCustomBreed("");
+        }
         setCustomSpecies(current.customSpecies ?? "");
         setDob(current.dateOfBirth ? current.dateOfBirth.slice(0, 10) : "");
         const gender = current.gender?.toUpperCase();
@@ -249,6 +257,10 @@ function EditProfilePageContent() {
       setError("Please enter what kind of pet it is.");
       return;
     }
+    if (breed === "Other" && !customBreed.trim()) {
+      setError("Please enter your pet's breed.");
+      return;
+    }
     let parsedWeight: number | undefined;
     if (weight.trim()) {
       parsedWeight = parseFloat(weight);
@@ -268,7 +280,7 @@ function EditProfilePageContent() {
       await apiUpdatePet(accessToken, pet.id, {
         name: name.trim(),
         customSpecies: pet.species.toUpperCase() === "OTHER" ? customSpecies.trim() : undefined,
-        breed: breed || undefined,
+        breed: breed === "Other" ? customBreed.trim() : breed || undefined,
         gender: sex,
         dateOfBirth: dob || undefined,
         weight: parsedWeight,
@@ -314,7 +326,13 @@ function EditProfilePageContent() {
   }
 
   const breeds = breedsBySpecies[pet.species.toLowerCase()] ?? breedsBySpecies.other;
-  const breedOptions = breeds.includes(breed) || !breed ? breeds : [breed, ...breeds];
+  const breedOptions = breed && !breeds.includes(breed) ? [breed, ...breeds] : breeds;
+  const isOtherBreed = breed === "Other";
+
+  function handleBreedChange(value: string) {
+    setBreed(value);
+    if (value !== "Other") setCustomBreed("");
+  }
 
   const sexOptions = [
     { id: "MALE" as const, label: "Male", icon: <span className="text-base leading-none">♂</span> },
@@ -373,7 +391,20 @@ function EditProfilePageContent() {
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <Label>Breed</Label>
-              <Select value={breed || breedOptions[0]} options={breedOptions} onChange={setBreed} />
+              <Select value={breed || breedOptions[0]} options={breedOptions} onChange={handleBreedChange} />
+              {isOtherBreed && (
+                <div className="mt-3">
+                  <Label required>Enter breed</Label>
+                  <div className="flex items-center rounded-xl bg-cream-100 ring-1 ring-cream-300 focus-within:ring-forest-500">
+                    <input
+                      value={customBreed}
+                      onChange={(e) => setCustomBreed(e.target.value)}
+                      placeholder="Type your pet's breed"
+                      className="w-full bg-transparent px-3 py-3 text-[15px] text-bark-700 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
             </Card>
             <Card>
               <Label>Date of Birth</Label>

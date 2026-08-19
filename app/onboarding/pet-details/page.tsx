@@ -186,6 +186,7 @@ export default function PetDetailsPage() {
   const [name, setName] = useState("");
   const breeds = breedsBySpecies[species] ?? breedsBySpecies.other;
   const [breed, setBreed] = useState(breeds[0]);
+  const [customBreed, setCustomBreed] = useState("");
   const [dob, setDob] = useState("");
   const [sex, setSex] = useState<"male" | "female" | "unknown">("male");
   const [notes, setNotes] = useState("");
@@ -216,6 +217,12 @@ export default function PetDetailsPage() {
   }, []);
 
   const displaySpecies = species === "other" ? customSpecies.trim() || "pet" : species;
+  const isOtherBreed = breed === "Other";
+
+  function handleBreedChange(value: string) {
+    setBreed(value);
+    if (value !== "Other") setCustomBreed("");
+  }
 
   const sexOptions = [
     { id: "male", label: "Male", icon: <span className="text-base leading-none">♂</span> },
@@ -232,6 +239,10 @@ export default function PetDetailsPage() {
       setError("Please enter your pet's name.");
       return;
     }
+    if (isOtherBreed && !customBreed.trim()) {
+      setError("Please enter your pet's breed.");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -240,7 +251,7 @@ export default function PetDetailsPage() {
         name: name.trim(),
         species: species.toUpperCase(),
         customSpecies: species === "other" ? customSpecies.trim() : undefined,
-        breed,
+        breed: isOtherBreed ? customBreed.trim() : breed,
         gender: sex.toUpperCase(),
         dateOfBirth: dob || undefined,
         weight: Number.isFinite(parsedWeight) ? parsedWeight : undefined,
@@ -330,7 +341,20 @@ export default function PetDetailsPage() {
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <Label required>Breed</Label>
-              <Select value={breed} options={breeds} onChange={setBreed} />
+              <Select value={breed} options={breeds} onChange={handleBreedChange} />
+              {isOtherBreed && (
+                <div className="mt-3">
+                  <Label required>Enter breed</Label>
+                  <div className="flex items-center rounded-xl bg-cream-100 ring-1 ring-cream-300 focus-within:ring-forest-500">
+                    <input
+                      value={customBreed}
+                      onChange={(e) => setCustomBreed(e.target.value)}
+                      placeholder="Type your pet's breed"
+                      className="w-full bg-transparent px-3 py-3 text-[15px] text-bark-700 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
             </Card>
             <Card>
               <Label required>Date of Birth</Label>
