@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   UserPlus, Bell, Search, SlidersHorizontal, ChevronRight,
   Check, X, Calendar, MapPin, PawPrint, Send, Compass,
@@ -23,6 +23,8 @@ import {
   PetConnection,
   CommunityPetResult,
 } from "@/lib/api";
+import { computeConnectionState } from "@/lib/connectionState";
+import PawMomentActions from "@/components/feed/PawMomentActions";
 
 const speciesEmoji: Record<string, string> = {
   DOG: "🐶",
@@ -59,6 +61,7 @@ function CommunityPageContent() {
   const router = useRouter();
 
   const [pet, setPet] = useState<Pet | null>(null);
+  const [allPets, setAllPets] = useState<Pet[]>([]);
   const [posts, setPosts] = useState<CommunityPost[] | null>(null);
   const [connections, setConnections] = useState<PetConnection[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -71,11 +74,35 @@ function CommunityPageContent() {
 
   async function loadCommunity(token: string, currentPet: Pet) {
     const [feed, petConnections] = await Promise.all([
-      apiGetPostsFeed(token),
+      apiGetPostsFeed(token, currentPet.id),
       apiGetPetConnections(token, currentPet.id),
     ]);
     setPosts(feed);
     setConnections(petConnections);
+  }
+
+  const ownPetIds = useMemo(() => new Set(allPets.map((p) => p.id)), [allPets]);
+
+  function updatePost(postId: string, patch: Partial<CommunityPost>) {
+    setPosts((prev) => (prev ? prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)) : prev));
+  }
+
+  function addRepost(newPost: CommunityPost) {
+    setPosts((prev) => (prev ? [newPost, ...prev] : prev));
+  }
+
+  function markConnectionRequested(receiverPetId: string) {
+    if (!pet) return;
+    setConnections((prev) => [
+      ...(prev ?? []),
+      {
+        id: `pending-${receiverPetId}`,
+        requesterId: pet.id,
+        receiverId: receiverPetId,
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+      },
+    ]);
   }
 
   useEffect(() => {
@@ -89,6 +116,7 @@ function CommunityPageContent() {
           router.replace("/onboarding/pet-type");
           return;
         }
+        setAllPets(pets);
         const storedId = localStorage.getItem("mitra_selected_pet_id");
         const currentPet = pets.find((p) => p.id === storedId) ?? pets[0];
         setPet(currentPet);
@@ -311,21 +339,42 @@ function CommunityPageContent() {
           ) : (
             <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4">
               {posts.map((p) => (
-                <div key={p.id} className="w-56 shrink-0 rounded-2xl bg-cream-50 p-3 shadow-soft ring-1 ring-cream-200">
+                <div key={p.id} className="w-64 shrink-0 rounded-2xl bg-cream-50 p-3 shadow-soft ring-1 ring-cream-200">
                   <div className="flex items-center gap-2">
                     <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-lg">
                       {speciesEmoji[p.pet.species.toUpperCase()] ?? "🐾"}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate font-700 text-bark-700">{p.pet.name}</p>
-                      <p className="truncate text-[11px] text-bark-500">{p.pet.breed ?? p.pet.species}</p>
+                      <p className="truncate text-[11px] text-bark-500">{p.pet.breed ?? p.pet.customSpecies ?? p.pet.species}</p>
                     </div>
                   </div>
+
+                  {p.originalPost && (
+                    <p className="mt-2 truncate text-[11px] text-bark-400">
+                      🔁 pawed forward from {p.originalPost.pet.name}
+                    </p>
+                  )}
+
                   {p.caption && <p className="mt-2 text-sm text-bark-600">{p.caption}</p>}
                   <div className="mt-2 flex items-center justify-between text-xs text-bark-400">
                     <span>{formatTimeAgo(p.createdAt)}</span>
-                    <span className="flex items-center gap-1">🐾 {p.interactions.length}</span>
+                    <span className="flex items-center gap-1">🐾 {p.pawCount}</span>
                   </div>
+
+                  {pet && accessToken && (
+                    <div className="-mx-3 mt-2">
+                      <PawMomentActions
+                        post={p}
+                        accessToken={accessToken}
+                        selectedPetId={pet.id}
+                        connectionState={computeConnectionState(p.pet.id, pet.id, ownPetIds, connections ?? [])}
+                        onPostUpdate={updatePost}
+                        onRepostCreated={addRepost}
+                        onConnectionRequested={markConnectionRequested}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

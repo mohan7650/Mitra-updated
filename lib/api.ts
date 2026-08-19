@@ -631,7 +631,9 @@ export interface PostPetSummary {
   id: string;
   name: string;
   species: string;
+  customSpecies: string | null;
   breed: string | null;
+  profilePhotoUrl: string | null;
 }
 
 export interface PostInteraction {
@@ -642,6 +644,13 @@ export interface PostInteraction {
   createdAt: string;
 }
 
+export interface CommunityPostOriginal {
+  id: string;
+  caption: string | null;
+  createdAt: string;
+  pet: PostPetSummary;
+}
+
 export interface CommunityPost {
   id: string;
   petId: string;
@@ -649,10 +658,16 @@ export interface CommunityPost {
   createdAt: string;
   pet: PostPetSummary;
   interactions: PostInteraction[];
+  pawCount: number;
+  pawedByMe: boolean;
+  repostCount: number;
+  originalPost: CommunityPostOriginal | null;
 }
 
-export async function apiGetPostsFeed(accessToken: string): Promise<CommunityPost[]> {
-  const res = await fetch(`${API_URL}/posts`, {
+export async function apiGetPostsFeed(accessToken: string, asPetId?: string): Promise<CommunityPost[]> {
+  const url = new URL(`${API_URL}/posts`);
+  if (asPetId) url.searchParams.set("asPetId", asPetId);
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     credentials: "include",
   });
@@ -673,6 +688,42 @@ export async function apiCreatePetPost(
     },
     credentials: "include",
     body: JSON.stringify({ caption }),
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
+export async function apiToggleInteraction(
+  accessToken: string,
+  petId: string,
+  postId: string,
+  type: "PAW",
+): Promise<{ toggled: "added" | "removed"; type: string }> {
+  const res = await fetch(`${API_URL}/pets/${petId}/posts/${postId}/interactions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    credentials: "include",
+    body: JSON.stringify({ type }),
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
+export async function apiRepostPetPost(
+  accessToken: string,
+  petId: string,
+  postId: string,
+): Promise<CommunityPost> {
+  const res = await fetch(`${API_URL}/pets/${petId}/posts/${postId}/repost`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    credentials: "include",
   });
   if (!res.ok) throw new ApiError(res.status, await parseError(res));
   return res.json();

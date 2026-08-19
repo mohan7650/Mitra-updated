@@ -242,9 +242,15 @@ model PetPost {
   caption   String?
   createdAt DateTime @default(now()) @map("created_at")
 
+  originalPostId String?   @map("original_post_id")
+  originalPost   PetPost?  @relation("PetPostRepost", fields: [originalPostId], references: [id], onDelete: SetNull)
+  reposts        PetPost[] @relation("PetPostRepost")
+
   interactions PetInteraction[]
 
+  @@unique([petId, originalPostId])
   @@index([petId])
+  @@index([originalPostId])
   @@map("pet_posts")
 }
 
