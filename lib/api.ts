@@ -678,6 +678,41 @@ export async function apiCreatePetPost(
   return res.json();
 }
 
+export interface CommunityPetResult {
+  id: string;
+  name: string;
+  species: string;
+  customSpecies: string | null;
+  breed: string | null;
+  bio: string | null;
+  personalityTraits: string[];
+  profilePhotoUrl: string | null;
+}
+
+export async function apiSearchCommunityPets(
+  accessToken: string,
+  query: string,
+): Promise<CommunityPetResult[]> {
+  const res = await fetch(`${API_URL}/community/pets/search?q=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
+export async function apiGetCommunityPet(
+  accessToken: string,
+  petId: string,
+): Promise<CommunityPetResult> {
+  const res = await fetch(`${API_URL}/community/pets/${petId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, await parseError(res));
+  return res.json();
+}
+
 export interface PetConnection {
   id: string;
   requesterId: string;
@@ -688,6 +723,14 @@ export interface PetConnection {
 
 export async function apiGetPetConnections(accessToken: string, petId: string): Promise<PetConnection[]> {
   return getForPet(accessToken, petId, "connections");
+}
+
+export async function apiCreatePetConnection(
+  accessToken: string,
+  petId: string,
+  receiverId: string,
+): Promise<PetConnection> {
+  return postForPet(accessToken, petId, "connections", { receiverId });
 }
 
 export async function apiUpdateConnectionStatus(

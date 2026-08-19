@@ -16,10 +16,12 @@ import {
   apiCreatePetPost,
   apiGetPetConnections,
   apiUpdateConnectionStatus,
+  apiSearchCommunityPets,
   ApiError,
   Pet,
   CommunityPost,
   PetConnection,
+  CommunityPetResult,
 } from "@/lib/api";
 
 const speciesEmoji: Record<string, string> = {
@@ -63,6 +65,10 @@ function CommunityPageContent() {
   const [caption, setCaption] = useState("");
   const [posting, setPosting] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CommunityPetResult[] | null>(null);
+  const [searchStatus, setSearchStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+
   async function loadCommunity(token: string, currentPet: Pet) {
     const [feed, petConnections] = await Promise.all([
       apiGetPostsFeed(token),
@@ -101,6 +107,37 @@ function CommunityPageContent() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, router]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 2) {
+      setSearchResults(null);
+      setSearchStatus("idle");
+      return;
+    }
+
+    setSearchStatus("loading");
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      apiSearchCommunityPets(accessToken, trimmed)
+        .then((results) => {
+          if (cancelled) return;
+          setSearchResults(results);
+          setSearchStatus("ready");
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setSearchStatus("error");
+          if (!(err instanceof ApiError)) console.error(err);
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [accessToken, searchQuery]);
 
   async function handleCreatePost() {
     if (!accessToken || !pet || !caption.trim()) return;
@@ -179,9 +216,57 @@ function CommunityPageContent() {
           {/* Search */}
           <div className="mt-4 flex items-center gap-2 rounded-full bg-cream-50 px-4 py-3 shadow-soft ring-1 ring-cream-200">
             <Search className="h-5 w-5 text-bark-400" />
-            <input placeholder="Search pets, breeds or locations" className="w-full bg-transparent text-sm text-bark-700 outline-none placeholder:text-bark-400" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search pets, breeds or locations"
+              className="w-full bg-transparent text-sm text-bark-700 outline-none placeholder:text-bark-400"
+            />
             <SlidersHorizontal className="h-5 w-5 text-bark-400" />
           </div>
+
+          {searchStatus !== "idle" && (
+            <div className="mt-3 rounded-2xl bg-cream-50 p-3 shadow-soft ring-1 ring-cream-200">
+              {searchStatus === "loading" && (
+                <p className="px-1 py-2 text-sm text-bark-500">Searching…</p>
+              )}
+              {searchStatus === "error" && (
+                <p className="px-1 py-2 text-sm text-bark-500">Something went wrong. Try again.</p>
+              )}
+              {searchStatus === "ready" && searchResults && searchResults.length === 0 && (
+                <p className="px-1 py-2 text-sm text-bark-500">No matching pets found</p>
+              )}
+              {searchStatus === "ready" && searchResults && searchResults.length > 0 && (
+                <ul className="divide-y divide-cream-200">
+                  {searchResults.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/community/pets/${r.id}`)}
+                        className="flex w-full items-center gap-3 py-2 text-left"
+                      >
+                        <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-b from-amber-200 to-amber-100 text-xl">
+                          {r.profilePhotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={r.profilePhotoUrl} alt={r.name} className="h-full w-full object-cover" />
+                          ) : (
+                            speciesEmoji[r.species.toUpperCase()] ?? "🐾"
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-700 text-bark-700">{r.name}</p>
+                          <p className="truncate text-[11px] text-bark-500">{r.breed ?? r.customSpecies ?? r.species}</p>
+                          {r.personalityTraits.length > 0 && (
+                            <p className="truncate text-[11px] text-bark-400">{r.personalityTraits.join(" • ")}</p>
+                          )}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </header>
 
         <main className="flex-1 pb-28">

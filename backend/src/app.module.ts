@@ -17,6 +17,7 @@ import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts
 import { VetClinicsModule } from './vet-clinics/vet-clinics.module';
 import { PetPostsModule } from './pet-posts/pet-posts.module';
 import { PetConnectionsModule } from './pet-connections/pet-connections.module';
+import { CommunityModule } from './community/community.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { PetConnectionsModule } from './pet-connections/pet-connections.module';
     VetClinicsModule,
     PetPostsModule,
     PetConnectionsModule,
+    CommunityModule,
   ],
 })
 export class AppModule {}
